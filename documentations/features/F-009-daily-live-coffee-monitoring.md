@@ -2,20 +2,20 @@
 
 ## Nom
 
-Suivi en temps réel des clients du cybercafé sur la journée
+Suivi en temps reel des clients du cybercafe sur la journee
 
 ## Contexte
 
-Le personnel doit voir à tout moment quels clients sont présents ou passés dans le cybercafé sur la journée, leur temps de connexion, leurs achats et leur statut.
+Le personnel doit voir a tout moment quels clients sont presents ou passes dans le cybercafe sur la journee, leur temps de connexion, leurs achats et leur statut.
 
 ## Acteurs
 
-- Employé du cybercafé
+- Employe du cybercafe
 - Administrateur
 
 ## Objectif
 
-Afficher une vue opérationnelle de la journée avec les clients en cours et les clients déjà passés, tout en les gardant visibles jusqu’à la fin de journée.
+Afficher une vue operationnelle de la journee avec les clients en cours et les clients deja passes, tout en les gardant visibles jusqu'a la fin de journee.
 
 ## Bounded context
 
@@ -25,18 +25,18 @@ Afficher une vue opérationnelle de la journée avec les clients en cours et les
 - customer
 - subscription
 
-## Règles métier
+## Regles metier
 
-- tout client ayant une activité sur la journée doit être visible jusqu’à la fin de journée
-- un client visible peut être en cours, terminé ou parti
+- tout client ayant une activite sur la journee doit etre visible jusqu'a la fin de journee
+- un client visible peut etre en cours, termine ou parti
 - la vue doit afficher le temps de connexion du jour
 - la vue doit afficher les consommations produits du jour
-- la vue doit afficher les abonnements achetés du jour
-- la vue doit distinguer client occasionnel et abonné
+- la vue doit afficher les abonnements achetes du jour
+- la vue doit distinguer client occasionnel et abonne
 
 ## Backend
 
-### Cas d’usage
+### Cas d'usage
 - GetDailyLiveCafeView
 - SearchTodayCustomers
 - GetTodayCustomerActivity
@@ -49,8 +49,8 @@ Afficher une vue opérationnelle de la journée avec les clients en cours et les
 
 ### Application
 - GetDailyLiveCafeViewUseCase
-- DailyCustomerViewDto
-- DailyCustomerActivityDto
+- DailyCustomerView
+- DailyCustomerActivityView
 
 ### Infrastructure
 - DailyMonitoringQueryAdapter
@@ -61,9 +61,10 @@ Afficher une vue opérationnelle de la journée avec les clients en cours et les
 
 ## Frontend
 
-### Écrans
-- tableau de bord opérationnel du jour
-- détail de l’activité du client sur la journée
+### Ecrans
+- tableau de bord operationnel du jour
+- detail de l'activite du client sur la journee
+- navigation depuis le shell principal vers l'ecran monitoring
 
 ### Composants
 - day-customers-table
@@ -72,9 +73,17 @@ Afficher une vue opérationnelle de la journée avec les clients en cours et les
 - day-consumption-panel
 - customer-day-detail-drawer
 
-## Critères d’acceptation
+### Navigation et comportements UI
+- la liste des clients du jour se charge a l'ouverture de l'ecran
+- la selection d'un client ouvre son detail dans la meme navigation
+- l'ecran permet un rafraichissement explicite ou automatique des donnees du jour
+- les informations de liste et de detail restent coherentes apres mise a jour
+- les erreurs de consultation sont affichees dans l'ecran
 
-- les clients du jour restent visibles jusqu’à la clôture de journée
+## Criteres d'acceptation
+
+- les clients du jour restent visibles jusqu'a la cloture de journee
 - la vue montre le temps de connexion et les consommations
-- le personnel peut distinguer rapidement les abonnés et non abonnés
-- l’accès au détail du jour d’un client est possible
+- le personnel peut distinguer rapidement les abonnes et non abonnes
+- l'acces au detail du jour d'un client est possible
+- la navigation liste vers detail est utilisable sans changer de page applicative

@@ -6,33 +6,33 @@ Gestion des abonnements
 
 ## Contexte
 
-Le cybercafé propose des abonnements donnant droit à une durée d’utilisation du cybercafé selon une formule définie.
+Le cybercafe propose des abonnements donnant droit a une duree d'utilisation du cybercafe selon une formule definie.
 
 ## Acteurs
 
 - Administrateur
-- Employé du cybercafé
+- Employe du cybercafe
 
 ## Objectif
 
-Permettre de définir des offres d’abonnement avec un prix et une durée de connexion incluse.
+Permettre de definir des offres d'abonnement avec un prix et une duree de connexion incluse.
 
 ## Bounded context
 
 - subscription
 
-## Règles métier
+## Regles metier
 
-- une offre d’abonnement possède un nom
-- une offre d’abonnement possède un prix
-- une offre d’abonnement possède une durée de connexion incluse
-- une offre d’abonnement peut être active ou inactive
-- une offre inactive ne peut plus être vendue
-- les abonnements vendus doivent conserver les informations de l’offre au moment de la vente
+- une offre d'abonnement possede un nom
+- une offre d'abonnement possede un prix
+- une offre d'abonnement possede une duree de connexion incluse
+- une offre d'abonnement peut etre active ou inactive
+- une offre inactive ne peut plus etre vendue
+- les abonnements vendus doivent conserver les informations de l'offre au moment de la vente
 
 ## Backend
 
-### Cas d’usage
+### Cas d'usage
 - CreateSubscriptionOffer
 - UpdateSubscriptionOffer
 - ActivateSubscriptionOffer
@@ -52,12 +52,12 @@ Permettre de définir des offres d’abonnement avec un prix et une durée de co
 - CreateSubscriptionOfferUseCase
 - UpdateSubscriptionOfferUseCase
 - SearchSubscriptionOffersUseCase
-- SubscriptionOfferSummaryDto
-- SubscriptionOfferDetailsDto
+- SubscriptionOfferView
 
 ### Infrastructure
 - SubscriptionOfferJpaEntity
 - SubscriptionOfferJpaRepository
+- SubscriptionOfferRepositoryAdapter
 
 ### API
 - GET /api/subscription-offers
@@ -69,11 +69,12 @@ Permettre de définir des offres d’abonnement avec un prix et une durée de co
 
 ## Frontend
 
-### Écrans
+### Ecrans
 - liste des abonnements
-- détail abonnement
-- création abonnement
-- édition abonnement
+- detail abonnement
+- creation abonnement
+- edition abonnement
+- navigation depuis le shell principal vers l'ecran abonnements
 
 ### Composants
 - subscription-offers-table
@@ -81,9 +82,18 @@ Permettre de définir des offres d’abonnement avec un prix et une durée de co
 - duration-display
 - offer-status-badge
 
-## Critères d’acceptation
+### Navigation et comportements UI
+- la liste des offres se charge a l'ouverture
+- le bouton de creation ouvre un formulaire vide
+- l'edition d'une offre recharge le formulaire avec les donnees courantes
+- apres sauvegarde ou changement de statut, la liste est rechargee
+- l'utilisateur reste sur le meme ecran apres action avec retour immediat sur la liste mise a jour
+- les messages d'erreur restent visibles dans la page
 
-- un abonnement peut être créé avec un prix et une durée
-- un abonnement inactif ne peut plus être vendu
-- la liste affiche le prix et la durée
+## Criteres d'acceptation
+
+- un abonnement peut etre cree avec un prix et une duree
+- un abonnement inactif ne peut plus etre vendu
+- la liste affiche le prix et la duree
 - les offres sont triables et filtrables
+- le bouton de creation et les actions de liste sont operationnels dans l'UI

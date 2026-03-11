@@ -1,0 +1,24 @@
+services:
+  cybermanager-db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cybermanager-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cybermanager
+      POSTGRES_USER: cybermanager
+      POSTGRES_PASSWORD: cybermanager
+    ports:
+      - "5432:5432"
+    volumes:
+      - cybermanager-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+volumes:
+  cybermanager-postgres-data:

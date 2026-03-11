@@ -2,7 +2,7 @@
 
 ## Contexte projet
 
-CyberManager est une application fullstack de gestion de la cybersécurité.
+CyberManager est une application fullstack de gestion d'un cyber café
 
 Stack cible :
 - Backend : Java 21 / Spring Boot
@@ -18,32 +18,56 @@ Stack cible :
 
 L'application permet de :
 - gérer les utilisateurs et leurs rôles
-- gérer les actifs / équipements / applications
-- suivre les vulnérabilités
-- gérer les incidents de sécurité
-- suivre les plans de remédiation
-- produire des tableaux de bord et rapports
+
 
 ## Architecture backend attendue
 
-Le backend est organisé par bounded context.
+Le backend est organisé selon les standards DDD : domain, application, infrastructure et api.
+
+Les bounded context (c'est à dire les "objets métier" sont dans le domain)
 
 Exemple :
 
 backend/
 ├── cybermanager-parent
-├── cm-auth
-│   ├── cm-auth-domain
-│   ├── cm-auth-application
-│   ├── cm-auth-infrastructure
-│   └── cm-auth-api
-├── cm
-│   ├── cm-domain
-│   ├── cm-application
-│   ├── cm-infrastructure
-│   └── cm-api
+├── auth
+│   ├── auth-domain
+│   ├── auth-application
+│   ├── auth-infrastructure
+│   └── auth-api
+├── cybermanager
+│   ├── cybermanager-domain
+│   ├── cybermanager-application
+│   ├── cybermanager-infrastructure
+│   └── cybermanager-api
+
 
 ## Règles DDD backend
+
+### Convention de packaging backend
+
+Le packaging Java doit être organisé d'abord par couche technique, puis par bounded context à l'intérieur de cette couche.
+
+Exemples attendus :
+- `com.cybermanager.domain.model.users`
+- `com.cybermanager.domain.port.users`
+- `com.cybermanager.application.commands.users`
+- `com.cybermanager.application.queries.users`
+- `com.cybermanager.application.views.users`
+- `com.cybermanager.application.usecases.users`
+- `com.cybermanager.application.services.users`
+- `com.cybermanager.api.controllers.users`
+- `com.cybermanager.api.dtos.users`
+- `com.cybermanager.api.mappers.users`
+- `com.cybermanager.infrastructure.adapters.persistence.users`
+- `com.cybermanager.infrastructure.entities.persistence.users`
+- `com.cybermanager.infrastructure.repositories.persistence.users`
+- `com.cybermanager.infrastructure.security.users`
+
+Règles :
+- ne pas mettre le bounded context à la racine du package avant la couche
+- le bounded context doit apparaître à l'intérieur du package de couche
+- appliquer la même logique dans `auth`, avec le préfixe module si nécessaire, par exemple `com.cybermanager.auth.application.services`
 
 ### Domain
 Contient exclusivement :
@@ -59,6 +83,7 @@ Contraintes :
 - aucune annotation JPA
 - aucune logique technique
 - aucune exposition HTTP
+- package racine attendu : `com.cybermanager.domain.*` ou `com.cybermanager.auth.domain.*`
 
 ### Application
 Contient :
@@ -70,10 +95,11 @@ Contient :
 
 Contraintes :
 - ne contient pas de logique d’infrastructure
-- dépend du domain, jamais de l’API
+- dépend du domain, jamais de l’APIs
 - ne contient que des annotations springs : @Transactional, @Qualifier, @Service
 - Les usecase prennent en entrée une Query/Command et en sortie une View
 - Les usecase ont une méthode execute (pattern command
+- package racine attendu : `com.cybermanager.application.*` ou `com.cybermanager.auth.application.*`
 
 ### Infrastructure
 Contient :
@@ -88,6 +114,7 @@ Contraintes :
 - peut dépendre de application et domain
 - ne doit pas contenir la logique métier centrale
 - pas d'appel direct des JpaRepository passage par un adapter obligatoire
+- package racine attendu : `com.cybermanager.infrastructure.*` ou `com.cybermanager.auth.infrastructure.*`
 
 ### API
 Contient :
@@ -100,6 +127,7 @@ Contraintes :
 - un controller ne retourne jamais d’entité domain ou d’entité JPA
 - un controller appelle les use cases / services applicatifs
 - pas d’accès direct aux repositories depuis les controllers
+- package racine attendu : `com.cybermanager.api.*` ou `com.cybermanager.auth.api.*`
 
 ## Architecture frontend attendue
 
@@ -117,10 +145,7 @@ frontend/src/app/
 
 ### core
 Contient :
-- guards
-- interceptors
-- services globaux
-- configuration applicative
+e
 
 ### shared
 Contient :
@@ -182,7 +207,7 @@ Historique journalier et consultation des journées passées.
 
 Pour toute nouvelle fonctionnalité :
 
-1. lire la feature dans docs/features
+1. lire la feature dans documentations/features
 2. identifier le bounded context impacté
 3. implémenter le domain
 4. implémenter l’application

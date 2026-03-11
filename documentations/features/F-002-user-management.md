@@ -6,7 +6,7 @@ Gestion des utilisateurs
 
 ## Contexte
 
-Les administrateurs doivent pouvoir créer, consulter, modifier, activer et désactiver les utilisateurs de CyberManager.
+Les administrateurs doivent pouvoir creer, consulter, modifier, activer et desactiver les utilisateurs de CyberManager.
 
 ## Acteurs
 
@@ -14,22 +14,22 @@ Les administrateurs doivent pouvoir créer, consulter, modifier, activer et dés
 
 ## Objectif
 
-Permettre l’administration du référentiel des utilisateurs et de leurs rôles.
+Permettre l'administration du referentiel des utilisateurs et de leurs roles.
 
 ## Bounded context
 
 - users
 
-## Règles métier
+## Regles metier
 
-- un email doit être unique
-- un utilisateur possède au moins un rôle
-- un utilisateur désactivé conserve son historique
-- seuls les administrateurs peuvent modifier les rôles
+- un email doit etre unique
+- un utilisateur possede au moins un role
+- un utilisateur desactive conserve son historique
+- seuls les administrateurs peuvent modifier les roles
 
 ## Backend
 
-### Cas d’usage
+### Cas d'usage
 - CreateUser
 - UpdateUser
 - DisableUser
@@ -48,13 +48,13 @@ Permettre l’administration du référentiel des utilisateurs et de leurs rôle
 - CreateUserUseCase
 - UpdateUserUseCase
 - SearchUsersUseCase
-- UserSummaryDto
-- UserDetailsDto
+- UserSummaryView
+- UserDetailsView
 
 ### Infrastructure
 - UserJpaEntity
 - UserJpaRepository
-- UserSearchAdapter
+- UserRepositoryAdapter
 
 ### API
 - GET /api/users
@@ -66,11 +66,13 @@ Permettre l’administration du référentiel des utilisateurs et de leurs rôle
 
 ## Frontend
 
-### Écrans
+### Ecrans
 - liste des utilisateurs
-- détail utilisateur
-- création utilisateur
-- édition utilisateur
+- detail utilisateur
+- creation utilisateur
+- edition utilisateur
+- navigation depuis le menu principal vers l'ecran utilisateurs
+- retour immediat en mode creation apres annulation ou sauvegarde
 
 ### Composants
 - users-table
@@ -78,9 +80,18 @@ Permettre l’administration du référentiel des utilisateurs et de leurs rôle
 - role-selector
 - user-status-badge
 
-## Critères d’acceptation
+### Navigation et comportements UI
+- la liste se charge a l'ouverture de l'ecran
+- la recherche et le filtrage rechargent la liste visible
+- la selection d'un utilisateur ouvre le formulaire en mode edition
+- l'action "nouvel utilisateur" reinitialise le formulaire et les roles
+- une creation ou une modification recharge la liste et met a jour l'affichage
+- les erreurs API sont affichees dans l'ecran sans casser la navigation
 
-- un administrateur peut créer un utilisateur
-- l’unicité de l’email est contrôlée
-- l’activation et la désactivation sont visibles dans l’UI
+## Criteres d'acceptation
+
+- un administrateur peut creer un utilisateur
+- l'unicite de l'email est controlee
+- l'activation et la desactivation sont visibles dans l'UI
 - la liste permet recherche et filtrage
+- le bouton de creation ouvre un formulaire exploitable sans soumission parasite

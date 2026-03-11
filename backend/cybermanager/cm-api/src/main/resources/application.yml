@@ -1,0 +1,22 @@
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: ${CM_DB_URL:jdbc:postgresql://localhost:5432/cybermanager}
+    username: ${CM_DB_USERNAME:cybermanager}
+    password: ${CM_DB_PASSWORD:cybermanager}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: cybermanager
+
+cybermanager:
+  security:
+    jwt-secret: ${CM_JWT_SECRET:01234567890123456789012345678901}

@@ -2,11 +2,11 @@
 
 ## Nom
 
-Nom court de la fonctionnalité.
+Nom court de la fonctionnalite.
 
 ## Contexte
 
-Décrire le besoin métier.
+Decrire le besoin metier.
 
 ## Acteurs
 
@@ -16,7 +16,7 @@ Décrire le besoin métier.
 
 ## Objectif
 
-Décrire le résultat attendu.
+Decrire le resultat attendu.
 
 ## Bounded context
 
@@ -30,28 +30,28 @@ Décrire le résultat attendu.
 - sales
 - session
 
-## Règles métier
+## Regles metier
 
-- règle 1
-- règle 2
-- règle 3
+- regle 1
+- regle 2
+- regle 3
 
 ## Backend
 
-### Cas d’usage
+### Cas d'usage
 - UC-1
 - UC-2
 - UC-3
 
 ### Domain
-- agrégats
-- entités
+- agregats
+- entites
 - value objects
 - services de domaine
 
 ### Application
 - use cases
-- DTO
+- views
 - ports
 
 ### Infrastructure
@@ -67,10 +67,10 @@ Décrire le résultat attendu.
 
 ## Frontend
 
-### Écrans
-- écran liste
-- écran détail
-- écran création / édition
+### Ecrans
+- ecran liste
+- ecran detail
+- ecran creation / edition
 
 ### Composants
 - tableau
@@ -82,8 +82,18 @@ Décrire le résultat attendu.
 - GET /...
 - POST /...
 
-## Critères d’acceptation
+### Navigation et comportements UI
+- preciser comment l'ecran est atteint depuis la navigation principale ou un autre ecran
+- preciser si une liste doit se charger automatiquement a l'ouverture
+- preciser comment la creation ou l'edition est declenchee depuis l'UI
+- preciser quel rafraichissement de liste ou de detail est attendu apres action
+- preciser la gestion des erreurs visibles cote utilisateur
+- preciser si la feature utilise une recherche ciblee plutot qu'une liste exhaustive
+- preciser si des donnees sont creees implicitement par une autre feature plutot que manuellement ici
+- preciser le libelle associe aux zones de recherche et si une autocompletion est attendue
 
-- critère 1
-- critère 2
-- critère 3
+## Criteres d'acceptation
+
+- critere 1
+- critere 2
+- critere 3

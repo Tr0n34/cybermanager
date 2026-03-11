@@ -2,19 +2,19 @@
 
 ## Nom
 
-Transformation d’un client en abonné
+Transformation d'un client journalier en abonne
 
 ## Contexte
 
-Un client occasionnel peut décider de prendre un abonnement à la fin de sa session ou après une consommation. Le système doit permettre cette conversion sans perdre l’historique ni interrompre la logique métier de la journée.
+Un client journalier peut decider de prendre un abonnement pendant ou apres sa session. Le systeme doit permettre cette conversion depuis le flux session, puis rendre le client visible et consultable dans l'ecran client.
 
 ## Acteurs
 
-- Employé du cybercafé
+- Employe du cybercafe
 
 ## Objectif
 
-Transformer un client occasionnel en abonné et, si l’abonnement est pris en fin de session, pouvoir immédiatement déduire le temps consommé du crédit inclus dans l’abonnement.
+Transformer un client journalier en abonne depuis sa session active et pouvoir deduire la session en cours du credit achete si demande.
 
 ## Bounded context
 
@@ -23,18 +23,18 @@ Transformer un client occasionnel en abonné et, si l’abonnement est pris en f
 - session
 - sales
 
-## Règles métier
+## Regles metier
 
-- un client occasionnel peut devenir abonné
-- l’historique du client doit être conservé
-- la vente de l’abonnement doit être enregistrée
-- si la conversion a lieu à la fin d’une session, le temps consommé peut être déduit du nouveau crédit d’abonnement
-- le client ne doit pas être dupliqué inutilement dans le système
-- le statut du client doit refléter sa nouvelle situation d’abonné
+- un client journalier peut devenir abonne
+- l'historique du client doit etre conserve
+- la vente de l'abonnement doit etre enregistree
+- la conversion peut etre declenchee depuis une session en cours
+- si la conversion a lieu pendant la session, le temps consomme peut etre deduit du nouveau credit d'abonnement
+- le client converti devient visible dans l'ecran client avec son abonnement en cours et ses achats
 
 ## Backend
 
-### Cas d’usage
+### Cas d'usage
 - ConvertCustomerToSubscriber
 - SellSubscriptionToExistingCustomer
 - DeductCurrentSessionFromNewSubscription
@@ -48,31 +48,43 @@ Transformer un client occasionnel en abonné et, si l’abonnement est pris en f
 
 ### Application
 - ConvertCustomerToSubscriberUseCase
-- ConversionResultDto
-- SubscriberDetailsDto
+- ConversionView
+- CustomerDetailsView
 
 ### Infrastructure
 - CustomerJpaEntity
 - SubscriberJpaEntity
 - SubscriptionPurchaseJpaEntity
+- SaleRepositoryAdapter
 
 ### API
 - POST /api/customers/{id}/convert-to-subscriber
+- GET /api/customers/{id}
 
 ## Frontend
 
-### Écrans
-- action de conversion depuis la fiche client
-- action de conversion depuis la clôture de session
+### Ecrans
+- conversion depuis une session journaliere active
+- retour sur la session convertie
+- consultation ulterieure depuis la fiche client
 
 ### Composants
 - convert-to-subscriber-form
 - subscription-offer-selector
 - conversion-summary-panel
+- customer-details-panel
 
-## Critères d’acceptation
+### Navigation et comportements UI
+- le formulaire de conversion est accessible depuis l'ecran sessions
+- les offres d'abonnement sont chargees avant validation
+- apres conversion, la session recharge les informations client avec le nouveau type
+- le client converti apparait ensuite dans l'ecran client avec son abonnement en cours
+- les erreurs de conversion restent visibles dans l'ecran
 
-- un client occasionnel peut être converti en abonné
-- l’abonnement choisi est vendu au moment de la conversion
-- le temps de session peut être déduit du nouveau forfait si demandé
-- l’historique du client est conservé
+## Criteres d'acceptation
+
+- un client journalier actif peut etre converti en abonne
+- l'abonnement choisi est vendu au moment de la conversion
+- le temps de session peut etre deduit du nouveau forfait si demande
+- l'historique du client est conserve
+- le client converti devient consultable dans l'ecran client

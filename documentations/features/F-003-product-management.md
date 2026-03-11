@@ -2,38 +2,38 @@
 
 ## Nom
 
-Gestion des produits vendus par le cybercafé
+Gestion des produits vendus par le cybercafe
 
 ## Contexte
 
-Le cybercafé vend des produits aux clients, par exemple des boissons, snacks, accessoires ou services complémentaires.
-L’application doit permettre de gérer ce catalogue afin de faciliter les ventes.
+Le cybercafe vend des produits aux clients, par exemple des boissons, snacks, accessoires ou services complementaires.
+L'application doit permettre de gerer ce catalogue afin de faciliter les ventes.
 
 ## Acteurs
 
 - Administrateur
-- Employé du cybercafé
+- Employe du cybercafe
 
 ## Objectif
 
-Permettre la création, la consultation, la modification, l’activation et la désactivation des produits vendus.
+Permettre la creation, la consultation, la modification, l'activation et la desactivation des produits vendus.
 
 ## Bounded context
 
 - catalog
 
-## Règles métier
+## Regles metier
 
-- un produit possède un nom
-- un produit possède un prix de vente
-- un produit peut être actif ou inactif
-- un produit peut appartenir à une catégorie
-- un produit inactif ne peut plus être vendu
-- l’historique des ventes doit rester cohérent même si le produit est modifié plus tard
+- un produit possede un nom
+- un produit possede un prix de vente
+- un produit peut etre actif ou inactif
+- un produit peut appartenir a une categorie
+- un produit inactif ne peut plus etre vendu
+- l'historique des ventes doit rester coherent meme si le produit est modifie plus tard
 
 ## Backend
 
-### Cas d’usage
+### Cas d'usage
 - CreateProduct
 - UpdateProduct
 - ActivateProduct
@@ -53,12 +53,12 @@ Permettre la création, la consultation, la modification, l’activation et la d
 - CreateProductUseCase
 - UpdateProductUseCase
 - SearchProductsUseCase
-- ProductSummaryDto
-- ProductDetailsDto
+- ProductView
 
 ### Infrastructure
 - ProductJpaEntity
 - ProductJpaRepository
+- ProductRepositoryAdapter
 
 ### API
 - GET /api/products
@@ -70,11 +70,12 @@ Permettre la création, la consultation, la modification, l’activation et la d
 
 ## Frontend
 
-### Écrans
+### Ecrans
 - liste des produits
-- détail produit
-- création produit
-- édition produit
+- detail produit
+- creation produit
+- edition produit
+- navigation depuis le shell principal vers l'ecran catalogue
 
 ### Composants
 - products-table
@@ -82,9 +83,18 @@ Permettre la création, la consultation, la modification, l’activation et la d
 - product-status-badge
 - product-category-filter
 
-## Critères d’acceptation
+### Navigation et comportements UI
+- la liste se charge a l'ouverture de l'ecran
+- les filtres nom, categorie et statut rechargent la liste
+- le bouton "nouveau produit" ouvre un formulaire vide
+- le clic sur une ligne ou une action d'edition ouvre le formulaire en mode modification
+- apres creation, modification, activation ou desactivation, la liste est rechargee
+- les erreurs de chargement ou de sauvegarde sont visibles dans l'ecran
 
-- un employé peut consulter le catalogue
-- un administrateur peut créer et modifier un produit
-- un produit inactif n’apparaît plus dans les ventes
+## Criteres d'acceptation
+
+- un employe peut consulter le catalogue
+- un administrateur peut creer et modifier un produit
+- un produit inactif n'apparait plus dans les ventes
 - la liste permet de filtrer les produits actifs et inactifs
+- la creation produit est accessible depuis l'ecran liste sans navigation cassee

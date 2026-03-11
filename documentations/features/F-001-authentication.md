@@ -6,7 +6,7 @@ Authentification des utilisateurs
 
 ## Contexte
 
-CyberManager doit permettre à un utilisateur de se connecter de manière sécurisée afin d’accéder aux fonctionnalités correspondant à son rôle.
+CyberManager doit permettre a un utilisateur de se connecter de maniere securisee afin d'acceder aux fonctionnalites correspondant a son role.
 
 ## Acteurs
 
@@ -15,23 +15,23 @@ CyberManager doit permettre à un utilisateur de se connecter de manière sécur
 
 ## Objectif
 
-Permettre l’authentification d’un utilisateur via login / mot de passe et la récupération de son profil applicatif.
+Permettre l'authentification d'un utilisateur via login / mot de passe et la recuperation de son profil applicatif.
 
 ## Bounded context
 
 - auth
 - users
 
-## Règles métier
+## Regles metier
 
-- seul un utilisateur actif peut s’authentifier
-- un utilisateur désactivé ne peut pas ouvrir de session
-- les rôles applicatifs sont chargés au moment de l’authentification
-- une tentative d’authentification invalide retourne une erreur métier explicite
+- seul un utilisateur actif peut s'authentifier
+- un utilisateur desactive ne peut pas ouvrir de session
+- les roles applicatifs sont charges au moment de l'authentification
+- une tentative d'authentification invalide retourne une erreur metier explicite
 
 ## Backend
 
-### Cas d’usage
+### Cas d'usage
 - AuthenticateUser
 - LoadAuthenticatedUserProfile
 
@@ -45,13 +45,13 @@ Permettre l’authentification d’un utilisateur via login / mot de passe et la
 ### Application
 - AuthenticateUserUseCase
 - LoadCurrentUserUseCase
-- AuthenticationResultDto
-- CurrentUserDto
+- AuthenticationResultView
+- CurrentUserView
 
 ### Infrastructure
 - UserJpaEntity
 - UserJpaRepository
-- PasswordEncoderAdapter
+- PasswordVerifierAdapter
 - JwtTokenProvider
 
 ### API
@@ -60,9 +60,11 @@ Permettre l’authentification d’un utilisateur via login / mot de passe et la
 
 ## Frontend
 
-### Écrans
+### Ecrans
 - page de connexion
-- récupération du profil courant après login
+- recuperation du profil courant apres login
+- redirection automatique vers le tableau de bord apres authentification
+- redirection automatique vers la page de connexion en cas de deconnexion ou d'absence de session
 
 ### Composants
 - login-form
@@ -72,9 +74,15 @@ Permettre l’authentification d’un utilisateur via login / mot de passe et la
 - POST /api/auth/login
 - GET /api/auth/me
 
-## Critères d’acceptation
+### Navigation et comportements UI
+- l'utilisateur non authentifie ne peut pas acceder aux ecrans proteges
+- l'utilisateur authentifie ne doit plus rester sur l'ecran de login
+- un message d'erreur lisible est affiche si l'authentification echoue
+- la session stocke le jeton et le profil courant pour les ecrans suivants
+
+## Criteres d'acceptation
 
 - un utilisateur valide obtient un jeton et son profil
-- un utilisateur invalide reçoit une erreur d’authentification
+- un utilisateur invalide recoit une erreur d'authentification
 - un utilisateur inactif ne peut pas se connecter
-- le frontend redirige vers le tableau de bord après connexion
+- le frontend redirige vers le tableau de bord apres connexion
