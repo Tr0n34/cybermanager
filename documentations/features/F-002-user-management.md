@@ -16,6 +16,16 @@ Les administrateurs doivent pouvoir creer, consulter, modifier, activer et desac
 
 Permettre l'administration du referentiel des utilisateurs et de leurs roles.
 
+## Ameliorations integrees
+
+- mise en place des commandes et queries dediees `Create`, `Update`, `Enable`, `Disable`, `Search`, `GetDetails`
+- ajout d'un mapping API explicite entre commandes applicatives et `UserResponse`
+- securisation des actions via lecture du JWT et controle des roles administrateur
+- ecran Angular unifie liste + formulaire avec composants reutilisables
+- ajout de la suppression utilisateur
+- refonte de l'ecran en mode liste compacte + panneau latere droite
+- filtres instantanes par nom, role et statut avec pagination et taille de page configurable
+
 ## Bounded context
 
 - users
@@ -34,20 +44,24 @@ Permettre l'administration du referentiel des utilisateurs et de leurs roles.
 - UpdateUser
 - DisableUser
 - EnableUser
+- DeleteUser
 - SearchUsers
 - GetUserDetails
 
 ### Domain
 - User
 - UserId
-- Email
-- Role
+- EmailAddress
+- AppRole
 - UserStatus
 
 ### Application
 - CreateUserUseCase
 - UpdateUserUseCase
+- EnableUserUseCase
+- DisableUserUseCase
 - SearchUsersUseCase
+- GetUserDetailsUseCase
 - UserSummaryView
 - UserDetailsView
 
@@ -55,14 +69,22 @@ Permettre l'administration du referentiel des utilisateurs et de leurs roles.
 - UserJpaEntity
 - UserJpaRepository
 - UserRepositoryAdapter
+- PasswordHasherAdapter
+- JwtAccessTokenReader
 
 ### API
 - GET /api/users
 - GET /api/users/{id}
 - POST /api/users
 - PUT /api/users/{id}
+- DELETE /api/users/{id}
 - PUT /api/users/{id}/enable
 - PUT /api/users/{id}/disable
+
+### Parametres et comportements API
+- `GET /api/users` accepte `term` et `status`
+- toutes les routes exigent un bearer token valide
+- les routes d'ecriture retournent l'etat courant complet de l'utilisateur
 
 ## Frontend
 
@@ -73,6 +95,8 @@ Permettre l'administration du referentiel des utilisateurs et de leurs roles.
 - edition utilisateur
 - navigation depuis le menu principal vers l'ecran utilisateurs
 - retour immediat en mode creation apres annulation ou sauvegarde
+- liste compacte avec pagination
+- panneau de creation / edition refermable
 
 ### Composants
 - users-table
@@ -82,11 +106,15 @@ Permettre l'administration du referentiel des utilisateurs et de leurs roles.
 
 ### Navigation et comportements UI
 - la liste se charge a l'ouverture de l'ecran
-- la recherche et le filtrage rechargent la liste visible
-- la selection d'un utilisateur ouvre le formulaire en mode edition
-- l'action "nouvel utilisateur" reinitialise le formulaire et les roles
-- une creation ou une modification recharge la liste et met a jour l'affichage
+- la recherche par nom, role et statut filtre la liste immediatement a chaque saisie
+- la taille de page est configurable depuis l'ecran et la pagination reste sur la meme page
+- la selection d'un utilisateur ouvre le panneau de droite en mode edition
+- l'action "nouvel utilisateur" ouvre le panneau de droite avec transition, masque le bouton de creation et reinitialise le formulaire
+- une creation, une modification ou une suppression recharge la liste et referme le panneau
 - les erreurs API sont affichees dans l'ecran sans casser la navigation
+- l'activation et la desactivation sont accessibles directement depuis la liste
+- la suppression est declenchable depuis l'edition avec confirmation
+- le formulaire gere la creation et l'edition sans changer de page
 
 ## Criteres d'acceptation
 
@@ -95,3 +123,4 @@ Permettre l'administration du referentiel des utilisateurs et de leurs roles.
 - l'activation et la desactivation sont visibles dans l'UI
 - la liste permet recherche et filtrage
 - le bouton de creation ouvre un formulaire exploitable sans soumission parasite
+- un utilisateur peut etre supprime depuis l'ecran d'edition

@@ -17,6 +17,13 @@ Le personnel doit voir a tout moment quels clients sont presents ou passes dans 
 
 Afficher une vue operationnelle de la journee avec les clients en cours et les clients deja passes, tout en les gardant visibles jusqu'a la fin de journee.
 
+## Ameliorations integrees
+
+- ajout d'un service applicatif de monitoring dedie a la journee courante
+- exposition d'une liste synthese et d'un detail d'activite par client
+- agregats de suivi centres sur le temps consomme, le temps restant, le total des achats et l'etat de session
+- ajout d'une page Angular de monitoring avec service API et modeles dedies
+
 ## Bounded context
 
 - monitoring
@@ -38,7 +45,6 @@ Afficher une vue operationnelle de la journee avec les clients en cours et les c
 
 ### Cas d'usage
 - GetDailyLiveCafeView
-- SearchTodayCustomers
 - GetTodayCustomerActivity
 
 ### Domain
@@ -59,6 +65,10 @@ Afficher une vue operationnelle de la journee avec les clients en cours et les c
 - GET /api/day-monitoring/customers
 - GET /api/day-monitoring/customers/{id}
 
+### Donnees restituees
+- la liste retourne `customerId`, `name`, `type`, `remainingMinutes`, `consumedMinutes`, `purchasesTotal` et `activeSession`
+- le detail retourne l'historique des ventes et des sessions de la journee pour un client
+
 ## Frontend
 
 ### Ecrans
@@ -78,6 +88,7 @@ Afficher une vue operationnelle de la journee avec les clients en cours et les c
 - la selection d'un client ouvre son detail dans la meme navigation
 - l'ecran permet un rafraichissement explicite ou automatique des donnees du jour
 - les informations de liste et de detail restent coherentes apres mise a jour
+- la vue doit mettre en avant les sessions actives et les clients encore credites en temps restant
 - les erreurs de consultation sont affichees dans l'ecran
 
 ## Criteres d'acceptation

@@ -30,6 +30,9 @@ Permettre la consultation, la recherche, la creation et la mise a jour des clien
 - la creation d'un client abonne doit etre associee a une offre d'abonnement initiale
 - la fiche client doit afficher l'abonnement en cours si applicable
 - la fiche client doit afficher l'historique des achats du client
+- la fiche client doit afficher les dettes ouvertes du client en ligne rouge
+- la liste des clients doit permettre de distinguer les `Client` et les `Abonne`
+- les abonnements du client sont cumulables
 
 ## Backend
 
@@ -74,6 +77,7 @@ Permettre la consultation, la recherche, la creation et la mise a jour des clien
 - creation d'un client abonne
 - fiche client detaillee
 - navigation depuis le shell principal vers l'ecran clients
+- panneau de droite creation / edition refermable
 
 ### Composants
 - customers-table
@@ -85,10 +89,14 @@ Permettre la consultation, la recherche, la creation et la mise a jour des clien
 ### Navigation et comportements UI
 - l'ecran charge les clients connus du systeme
 - toutes les zones de recherche possedent un label explicite
-- la recherche client permet de retrouver un client specifique ou un abonne
-- la creation permet de choisir entre client specifique et client abonne
+- la recherche client par nom filtre la liste immediatement
+- la taille de page est configurable et la pagination reste dans la page
+- la creation permet de choisir entre `Client` et `Abonne`
 - si le type choisi est abonne, une offre d'abonnement doit etre selectionnee
-- l'ouverture d'une fiche client affiche l'abonnement en cours et l'historique des achats
+- le bouton `Nouveau client` ouvre un panneau de droite avec animation puis disparait tant que le panneau est ouvert
+- l'ouverture d'une fiche client affiche l'abonnement en cours, l'historique des achats et les dettes ouvertes en rouge
+- la fiche client rappelle que les abonnements se cumulent
+- la fiche detaillee reutilise le meme panneau que la creation et l'edition
 
 ## Criteres d'acceptation
 
@@ -96,3 +104,4 @@ Permettre la consultation, la recherche, la creation et la mise a jour des clien
 - un employe peut creer un client abonne depuis l'ecran client
 - la fiche client affiche l'abonnement en cours
 - la fiche client affiche les achats de produits, d'abonnements et autres ventes
+- la fiche client affiche les dettes non reglees en rouge

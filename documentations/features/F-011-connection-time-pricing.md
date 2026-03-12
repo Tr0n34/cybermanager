@@ -16,10 +16,16 @@ Le cybercafe doit pouvoir faire evoluer le prix du temps de connexion sans modif
 
 Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de duree exprimees en heures, minutes et prix.
 
+## Ameliorations integrees
+
+- ajout d'une API complete de lecture et de mise a jour de la grille active
+- factorisation de la grille dans le domaine `sales` via `ConnectionPricingRule`
+- reutilisation de la meme grille par la vente de temps et les vues de suivi et d'historique
+- ajout d'une page Angular dediee a la saisie et a l'edition des paliers
+
 ## Bounded context
 
 - sales
-- pricing
 - session
 
 ## Regles metier
@@ -46,19 +52,18 @@ Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de
 ### Domain
 
 - ConnectionPricingRule
-- ConnectionPricingTier
 - Money
 
 ### Application
 
 - ConfigureConnectionPricingCommand
+- GetCurrentConnectionPricingQuery
 - ConnectionPricingView
 - SalesApplicationService
 - SessionApplicationService
 
 ### Infrastructure
 
-- ConnectionPricingTierJpaEntity
 - ConnectionPricingJpaRepository
 - ConnectionPricingRepositoryAdapter
 
@@ -66,6 +71,10 @@ Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de
 
 - GET /api/pricing/connection-time
 - PUT /api/pricing/connection-time
+
+### Contrats API attendus
+- `GET /api/pricing/connection-time` retourne une collection de paliers ordonnee avec `hours`, `minutes`, `durationMinutes` et `price`
+- `PUT /api/pricing/connection-time` remplace la grille active complete a partir d'une collection de paliers
 
 ## Frontend
 
@@ -89,6 +98,7 @@ Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de
 - la grille active s'affiche immediatement apres chargement
 - l'utilisateur peut retirer une plage avant enregistrement
 - l'utilisateur peut enregistrer l'ensemble de la grille en une action
+- la page affiche aussi le total en minutes de chaque palier pour faciliter le controle
 - les messages de succes et d'erreur sont affiches dans l'ecran
 
 ## Criteres d'acceptation
@@ -99,3 +109,4 @@ Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de
 - la vente de temps utilise la grille configuree
 - l'arret d'une session journaliere utilise la meme grille configuree
 - l'ecran ventes affiche la grille active et renvoie vers l'ecran dedie de configuration
+- la lecture de la grille active est possible sans modification

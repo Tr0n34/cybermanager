@@ -31,6 +31,7 @@ Transformer un client journalier en abonne depuis sa session active et pouvoir d
 - la conversion peut etre declenchee depuis une session en cours
 - si la conversion a lieu pendant la session, le temps consomme peut etre deduit du nouveau credit d'abonnement
 - le client converti devient visible dans l'ecran client avec son abonnement en cours et ses achats
+- les futurs abonnements achetes par ce client s'ajoutent au credit existant
 
 ## Backend
 
@@ -75,10 +76,11 @@ Transformer un client journalier en abonne depuis sa session active et pouvoir d
 - customer-details-panel
 
 ### Navigation et comportements UI
-- le formulaire de conversion est accessible depuis l'ecran sessions
+- le formulaire de conversion est accessible depuis la colonne de gauche de l'ecran sessions
 - les offres d'abonnement sont chargees avant validation
 - apres conversion, la session recharge les informations client avec le nouveau type
 - le client converti apparait ensuite dans l'ecran client avec son abonnement en cours
+- le client converti apparait ensuite dans l'ecran client avec son abonnement en cours, ses achats et ses dettes ouvertes eventuelles
 - les erreurs de conversion restent visibles dans l'ecran
 
 ## Criteres d'acceptation
@@ -88,3 +90,4 @@ Transformer un client journalier en abonne depuis sa session active et pouvoir d
 - le temps de session peut etre deduit du nouveau forfait si demande
 - l'historique du client est conserve
 - le client converti devient consultable dans l'ecran client
+- la conversion reste faisable sans quitter le flux comptoir

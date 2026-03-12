@@ -18,9 +18,19 @@ L'application doit permettre de gerer ce catalogue afin de faciliter les ventes.
 
 Permettre la creation, la consultation, la modification, l'activation et la desactivation des produits vendus.
 
+## Ameliorations integrees
+
+- ajout du service applicatif catalogue couvrant recherche, detail, creation, modification et changements de statut
+- exposition d'un endpoint de recherche avec filtres `term`, `status` et `category`
+- ajout d'une page Angular de gestion du catalogue avec service API dedie
+- conservation d'un modele de produit simple oriente vente : nom, prix, categorie, statut
+- ajout de la suppression produit
+- refonte de l'ecran en mode liste compacte + panneau lateral refermable
+- filtres instantanes par nom, categorie et statut avec pagination et taille de page configurable
+
 ## Bounded context
 
-- catalog
+- product
 
 ## Regles metier
 
@@ -38,21 +48,23 @@ Permettre la creation, la consultation, la modification, l'activation et la desa
 - UpdateProduct
 - ActivateProduct
 - DeactivateProduct
+- DeleteProduct
 - SearchProducts
 - GetProductDetails
 
 ### Domain
 - Product
 - ProductId
-- ProductName
-- ProductPrice
-- ProductCategory
 - ProductStatus
+- Money
 
 ### Application
 - CreateProductUseCase
 - UpdateProductUseCase
+- ActivateProductUseCase
+- DeactivateProductUseCase
 - SearchProductsUseCase
+- GetProductDetailsUseCase
 - ProductView
 
 ### Infrastructure
@@ -65,8 +77,14 @@ Permettre la creation, la consultation, la modification, l'activation et la desa
 - GET /api/products/{id}
 - POST /api/products
 - PUT /api/products/{id}
+- DELETE /api/products/{id}
 - PUT /api/products/{id}/activate
 - PUT /api/products/{id}/deactivate
+
+### Parametres et comportements API
+- `GET /api/products` accepte `term`, `status` et `category`
+- les lectures sont accessibles sans header d'authentification dans l'etat actuel
+- les operations d'ecriture exigent un bearer token et retournent le produit mis a jour
 
 ## Frontend
 
@@ -85,11 +103,14 @@ Permettre la creation, la consultation, la modification, l'activation et la desa
 
 ### Navigation et comportements UI
 - la liste se charge a l'ouverture de l'ecran
-- les filtres nom, categorie et statut rechargent la liste
-- le bouton "nouveau produit" ouvre un formulaire vide
-- le clic sur une ligne ou une action d'edition ouvre le formulaire en mode modification
-- apres creation, modification, activation ou desactivation, la liste est rechargee
+- les filtres nom, categorie et statut filtrent la liste immediatement a chaque saisie
+- la taille de page est configurable et la pagination reste dans l'ecran
+- le bouton "nouveau produit" ouvre un panneau de droite vide avec animation puis disparait tant que le panneau reste ouvert
+- le clic sur une ligne ou une action d'edition ouvre le panneau en mode modification
+- apres creation, modification, activation, desactivation ou suppression, la liste est rechargee et le panneau peut se refermer
 - les erreurs de chargement ou de sauvegarde sont visibles dans l'ecran
+- la page combine le tableau catalogue et le formulaire produit dans le meme flux utilisateur
+- le badge de statut actif / inactif doit rester visuellement distinct et lisible
 
 ## Criteres d'acceptation
 
@@ -98,3 +119,4 @@ Permettre la creation, la consultation, la modification, l'activation et la desa
 - un produit inactif n'apparait plus dans les ventes
 - la liste permet de filtrer les produits actifs et inactifs
 - la creation produit est accessible depuis l'ecran liste sans navigation cassee
+- un produit peut etre supprime depuis l'ecran d'edition

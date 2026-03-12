@@ -39,4 +39,8 @@ export class UsersApiService {
   disable(userId: string) {
     return this.http.put<UserResponse>(`${this.baseUrl}/${userId}/disable`, {});
   }
+
+  delete(userId: string) {
+    return this.http.delete<void>(`${this.baseUrl}/${userId}`);
+  }
 }

@@ -1,0 +1,126 @@
+html, body {
+  margin: 0;
+  min-height: 100%;
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --cm-btn-primary-bg: linear-gradient(135deg, #1d3557, #274c77);
+  --cm-btn-primary-shadow: 0 12px 28px rgba(29, 53, 87, 0.22);
+  --cm-btn-secondary-bg: #e2e8f0;
+  --cm-btn-secondary-text: #0f172a;
+  --cm-btn-ghost-bg: #fff7ed;
+  --cm-btn-ghost-text: #9a3412;
+  --cm-btn-danger-bg: linear-gradient(135deg, #fee2e2, #fecaca);
+  --cm-btn-danger-text: #991b1b;
+  --cm-btn-radius: 999px;
+}
+
+body {
+  background: #eef2f6;
+}
+
+.page,
+.stack,
+.grid,
+.hero,
+.toolbar,
+.filters,
+.panel-header,
+.side-panel-header,
+.section-head,
+.actions,
+.pager {
+  gap: 0.75rem !important;
+}
+
+.panel {
+  padding: 1rem !important;
+}
+
+.table {
+  font-size: 0.9rem !important;
+}
+
+.table th,
+.table td {
+  padding: 0.54rem 0.62rem !important;
+}
+
+.table th {
+  font-size: 0.74rem !important;
+}
+
+input,
+select,
+button,
+.link-button {
+  padding: 0.72rem 0.9rem !important;
+}
+
+button,
+.link-button {
+  appearance: none;
+  border: 0 !important;
+  border-radius: var(--cm-btn-radius) !important;
+  padding: 0.8rem 1.05rem !important;
+  background: var(--cm-btn-primary-bg) !important;
+  color: #fff !important;
+  font: inherit;
+  font-weight: 700 !important;
+  line-height: 1.1;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  box-shadow: var(--cm-btn-primary-shadow);
+  transition: transform 140ms ease, box-shadow 160ms ease, filter 160ms ease, opacity 140ms ease;
+}
+
+button:hover,
+.link-button:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.03);
+  box-shadow: 0 16px 32px rgba(29, 53, 87, 0.26);
+}
+
+button:active,
+.link-button:active {
+  transform: translateY(0);
+}
+
+button:disabled,
+.link-button:disabled {
+  opacity: 0.48;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
+}
+
+button.secondary,
+button.icon-button,
+.link-button.secondary {
+  background: var(--cm-btn-secondary-bg) !important;
+  color: var(--cm-btn-secondary-text) !important;
+  box-shadow: 0 10px 24px rgba(148, 163, 184, 0.2) !important;
+}
+
+button.ghost,
+.link-button.ghost {
+  background: var(--cm-btn-ghost-bg) !important;
+  color: var(--cm-btn-ghost-text) !important;
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.14) !important;
+}
+
+button.danger,
+.link-button.danger {
+  background: var(--cm-btn-danger-bg) !important;
+  color: var(--cm-btn-danger-text) !important;
+  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.16) !important;
+}

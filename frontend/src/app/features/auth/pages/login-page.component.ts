@@ -50,7 +50,15 @@ export class LoginPageComponent {
         void this.router.navigate(['/dashboard']);
       },
       error: (error: HttpErrorResponse) => {
-        this.error.set(error.error?.message ?? 'Authentification impossible');
+        if (error.error?.message) {
+          this.error.set(error.error.message);
+        } else if (error.status === 404) {
+          this.error.set("Authentification impossible. L'URL de l'API d'authentification semble incorrecte.");
+        } else if (error.status === 0) {
+          this.error.set("Authentification impossible. L'API d'authentification est inaccessible ou mal configuree.");
+        } else {
+          this.error.set('Authentification impossible');
+        }
         this.loading.set(false);
       },
       complete: () => this.loading.set(false),

@@ -17,6 +17,7 @@ Format recommande :
 - F-009-daily-live-coffee-monitoring.md
 - F-010-daily-history.md
 - F-011-connection-time-pricing.md
+- F-012-customer-debt-management.md
 
 ## Cycle de vie d'une feature
 

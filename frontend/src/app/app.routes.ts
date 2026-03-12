@@ -15,6 +15,7 @@ import { SessionsPageComponent } from './features/sessions/pages/sessions-page.c
 import { SessionDisplaySettingsPageComponent } from './features/sessions/pages/session-display-settings-page.component';
 import { MonitoringPageComponent } from './features/monitoring/pages/monitoring-page.component';
 import { ReportingPageComponent } from './features/reporting/pages/reporting-page.component';
+import { DebtsPageComponent } from './features/debts/pages/debts-page.component';
 
 export const routes: Routes = [
   {
@@ -37,6 +38,7 @@ export const routes: Routes = [
       { path: 'sales/pricing', component: ConnectionPricingPageComponent },
       { path: 'sessions', component: SessionsPageComponent },
       { path: 'sessions/settings', component: SessionDisplaySettingsPageComponent },
+      { path: 'debts', component: DebtsPageComponent },
       { path: 'monitoring', component: MonitoringPageComponent },
       { path: 'reporting', component: ReportingPageComponent },
     ],

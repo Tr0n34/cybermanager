@@ -35,6 +35,9 @@ Permettre de demarrer, suivre, convertir et terminer une session de connexion, a
 - un client journalier en session peut etre converti en abonne sans quitter l'ecran sessions
 - l'affichage des sessions du jour doit etre centre sur le nom du client
 - la gestion des postes n'est pas exposee dans l'interface utilisateur
+- la vue de detail d'une session doit afficher les achats du jour, le resume abonnement et les dettes ouvertes du client
+- l'arret d'une session client journalier facturee et non reglee cree une dette ouverte
+- les abonnements d'un client abonne sont cumulables
 
 ## Backend
 
@@ -84,6 +87,7 @@ Permettre de demarrer, suivre, convertir et terminer une session de connexion, a
 - vue des sessions en cours
 - vue des sessions du jour
 - conversion d'un client journalier actif en abonne
+- detail developpable par session en cours
 
 ### Composants
 - walk-in-session-form
@@ -98,9 +102,16 @@ Permettre de demarrer, suivre, convertir et terminer une session de connexion, a
 - l'ecran permet de creer un client abonne avec son abonnement initial
 - la recherche d'abonne se fait par autocompletion et non par liste exhaustive
 - toutes les zones de recherche possedent un label explicite
+- les sessions en cours et du jour sont separees visuellement, les sessions du jour etant affichees dans un encart dedie en bas
 - les sessions en cours et du jour affichent le nom du client et son type
 - la conversion d'un journalier en abonne est declenchable depuis une session en cours
-- l'interface privilegie des formulaires courts et des actions immediates pour un usage comptoir
+- un bouton `Detail` ouvre sous la session le detail des achats du jour, l'abonnement et les dettes en rouge
+- la vente produit pour une session en cours se declenche depuis la colonne de gauche sans quitter l'ecran
+- la vente produit depuis session permet aussi de cocher la creation d'une dette
+- le tableau des achats du detail session doit rester tres compact pour supporter de nombreuses lignes
+- l'arret d'une session affiche immediatement le total a payer calcule pour cette session
+- le resume abonnement rappelle que les abonnements se cumulent
+- l'interface privilegie des formulaires courts, compacts et des actions immediates pour un usage comptoir
 
 ## Criteres d'acceptation
 
@@ -109,3 +120,6 @@ Permettre de demarrer, suivre, convertir et terminer une session de connexion, a
 - un abonne existant peut etre retrouve par autocompletion et demarrer une session
 - les sessions du jour affichent les noms des clients
 - un client journalier actif peut etre converti en abonne depuis l'ecran sessions
+- le detail d'une session affiche les dettes ouvertes du client en rouge
+- le detail des achats reste lisible sans occuper excessivement de hauteur
+- l'utilisateur voit le montant total a payer apres l'arret d'une session

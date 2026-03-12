@@ -15,7 +15,7 @@ Utiliser cette skill lorsqu'une feature impacte uniquement ou principalement le 
 
 ## Required inputs
 
-- le fichier de feature dans docs/features
+- le fichier de feature dans documentations/features
 - le bounded context concerne
 - les regles de AGENTS.md
 
@@ -59,15 +59,23 @@ Utiliser cette skill lorsqu'une feature impacte uniquement ou principalement le 
     - mappers
     - packages attendus : `com.cybermanager.api.controllers.<bounded-context>`, `com.cybermanager.api.dtos.<bounded-context>`, `com.cybermanager.api.mappers.<bounded-context>`
 
-7. Ajouter les tests :
+7. Standardiser les erreurs metier backend :
+    - ne pas renvoyer les erreurs metier attendues via `IllegalArgumentException` si elles doivent etre comprises par le frontend
+    - preferer une exception metier explicite avec un `code` stable, un `message` lisible et un type parmi `VALIDATION`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`
+    - centraliser la traduction HTTP dans `ApiExceptionHandler`
+    - retourner un payload d'erreur coherent : `code`, `message`, `status`, `timestamp`
+    - reserver les erreurs techniques non prevues au fallback `500 INTERNAL_ERROR`
+
+8. Ajouter les tests :
     - unit tests domain / application
     - tests d'integration si necessaire
 
-8. Verifier :
+9. Verifier :
     - aucun controller ne manipule une entite JPA
     - aucune dependance Spring dans le domain
     - la logique metier principale est dans domain / application
     - le bounded context est imbrique dans le package de couche et non l'inverse
+    - les erreurs metier attendues sont converties en reponses HTTP stables et testables
 
 ## Output format
 

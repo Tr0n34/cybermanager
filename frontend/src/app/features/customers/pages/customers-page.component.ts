@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, map } from 'rxjs';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { debounceTime, distinctUntilChanged } from 'rxjs';
 
 import type { Customer, CustomerDetails } from '../models/customer.models';
 import { CustomersApiService } from '../services/customers-api.service';
@@ -18,37 +18,75 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
       <header class="hero">
         <div>
           <p class="eyebrow">Clientele</p>
-          <h2>Clients specifiques</h2>
+          <h2>Clients</h2>
         </div>
-        <p class="lede">Les clients journaliers et abonnes crees depuis l'ecran sessions apparaissent ici. Cette page permet aussi de creer des clients specifiques et des abonnes.</p>
+        <p class="lede">Les clients journaliers et abonnes crees depuis l'ecran sessions apparaissent ici. Cette page permet aussi de creer des clients et des abonnes.</p>
+
+        <div class="filters" [formGroup]="filters">
+          <input formControlName="term" placeholder="Filtrer par nom" />
+
+          <select formControlName="pageSize">
+            <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }} / page</option>
+          </select>
+
+          <button *ngIf="!isPanelOpen()" type="button" class="secondary" (click)="openCreatePanel()">Nouveau client</button>
+        </div>
       </header>
 
       <p class="error" *ngIf="error()">{{ error() }}</p>
 
-      <div class="grid">
-        <article class="panel stack">
-          <section class="stack">
-            <label class="field">
-              <span>Recherche client</span>
-              <input [formControl]="filters.controls.term" placeholder="Nom du client ou abonne" />
-            </label>
-          </section>
+      <div class="toolbar">
+        <p class="summary">
+          {{ filteredCustomers().length }} client{{ filteredCustomers().length > 1 ? 's' : '' }}
+          <span *ngIf="filteredCustomers().length !== customers().length">sur {{ customers().length }}</span>
+        </p>
+
+        <div class="pager" *ngIf="totalPages() > 1">
+          <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
+          <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
+          <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
+        </div>
+      </div>
+
+      <div class="grid" [class.panel-open]="isPanelOpen()">
+        <article class="panel list-panel">
+          <div class="panel-header">
+            <h3>Liste</h3>
+          </div>
 
           <table class="table">
-            <tr><th>Nom</th><th>Type</th><th>Abonnement</th><th>Credit</th><th></th></tr>
-            <tr *ngFor="let item of customers()">
-              <td>{{ item.name }}</td>
-              <td>{{ item.type === 'SUBSCRIBER' ? 'Abonne' : 'Client specifique' }}</td>
-              <td>{{ item.type === 'SUBSCRIBER' ? 'Actif' : 'Aucun' }}</td>
-              <td>{{ item.remainingMinutes }} min</td>
-              <td><button type="button" (click)="open(item.customerId)">Ouvrir</button></td>
-            </tr>
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Type</th>
+                <th>Abonnement</th>
+                <th>Credit</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of paginatedCustomers()" [class.active]="selected()?.customerId === item.customerId">
+                <td><strong>{{ item.name }}</strong></td>
+                <td>{{ item.type === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</td>
+                <td>{{ item.type === 'SUBSCRIBER' ? 'Actif' : 'Aucun' }}</td>
+                <td>{{ item.remainingMinutes }} min</td>
+                <td><button type="button" (click)="open(item.customerId)">Ouvrir</button></td>
+              </tr>
+
+              <tr *ngIf="paginatedCustomers().length === 0">
+                <td colspan="5" class="empty">Aucun client pour ce filtre.</td>
+              </tr>
+            </tbody>
           </table>
         </article>
 
-        <article class="panel stack">
-          <section class="stack">
-            <h3>Creer un client</h3>
+        <article class="panel side-panel stack" [class.open]="isPanelOpen()" [attr.aria-hidden]="!isPanelOpen()">
+          <div class="side-panel-header">
+            <h3>{{ panelMode() === 'edit' ? 'Fiche client' : 'Creation client' }}</h3>
+            <button type="button" class="icon-button" (click)="closePanel()">Fermer</button>
+          </div>
+
+          <section class="stack" *ngIf="panelMode() === 'create'; else editPanel">
             <form [formGroup]="createForm" (ngSubmit)="createCustomer()" class="stack">
               <label class="field">
                 <span>Nom du client</span>
@@ -57,8 +95,8 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
               <label class="field">
                 <span>Type de client</span>
                 <select formControlName="type">
-                  <option value="WALK_IN">Client specifique</option>
-                  <option value="SUBSCRIBER">Client abonne</option>
+                  <option value="WALK_IN">Client</option>
+                  <option value="SUBSCRIBER">Abonne</option>
                 </select>
               </label>
               <label class="field" *ngIf="createForm.controls.type.value === 'SUBSCRIBER'">
@@ -68,80 +106,187 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
                   <option *ngFor="let offer of offers()" [value]="offer.offerId">{{ offer.name }} - {{ offer.includedMinutes }} min</option>
                 </select>
               </label>
-              <button type="submit">Creer</button>
+              <button type="submit" [disabled]="createForm.invalid">Creer</button>
             </form>
           </section>
 
-          <section class="stack" *ngIf="selected() as customer">
-            <h3>Fiche client</h3>
-            <form [formGroup]="editForm" (ngSubmit)="save(customer.customerId)" class="stack">
-              <label class="field">
-                <span>Nom du client</span>
-                <input formControlName="name" />
-              </label>
-              <div class="facts">
-                <p><strong>Type :</strong> {{ customer.type === 'SUBSCRIBER' ? 'Abonne' : 'Client specifique' }}</p>
-                <p><strong>Abonnement en cours :</strong> {{ customer.currentSubscriptionLabel ?? 'Aucun' }}</p>
-                <p><strong>Credit disponible :</strong> {{ customer.remainingMinutes }} min</p>
-              </div>
-              <div class="actions">
-                <button type="submit">Enregistrer</button>
-                <button type="button" class="ghost" (click)="clearSelection()">Fermer</button>
-              </div>
-            </form>
+          <ng-template #editPanel>
+            <section class="stack" *ngIf="selected() as customer">
+              <form [formGroup]="editForm" (ngSubmit)="save(customer.customerId)" class="stack">
+                <label class="field">
+                  <span>Nom du client</span>
+                  <input formControlName="name" />
+                </label>
+                <div class="facts">
+                  <p><strong>Type :</strong> {{ customer.type === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</p>
+                  <p><strong>Abonnements :</strong> {{ customer.currentSubscriptionLabel ?? 'Aucun' }}</p>
+                  <p *ngIf="customer.type === 'SUBSCRIBER'" class="muted">Les abonnements se cumulent.</p>
+                  <p><strong>Credit disponible :</strong> {{ customer.remainingMinutes }} min</p>
+                  <p *ngIf="customer.debts.length > 0" class="debt-summary"><strong>Dettes :</strong> <span class="money-alert-icon debt-indicator" title="Dettes ouvertes"><span class="bill back"></span><span class="bill front"></span><span class="slash"></span></span></p>
+                </div>
+                <div class="actions">
+                  <button type="submit" [disabled]="editForm.invalid">Enregistrer</button>
+                  <button type="button" class="ghost" (click)="openCreatePanel()">Nouveau</button>
+                </div>
+              </form>
 
-            <div class="stack">
-              <h4>Achats du client</h4>
-              <table class="table compact" *ngIf="customer.purchases.length > 0; else emptyPurchases">
-                <tr><th>Quand</th><th>Type</th><th>Detail</th><th>Total</th></tr>
-                <tr *ngFor="let purchase of customer.purchases">
-                  <td>{{ purchase.soldAt | date:'short' }}</td>
-                  <td>{{ purchase.type }}</td>
-                  <td>{{ purchase.label }}</td>
-                  <td>{{ purchase.totalAmount | number:'1.2-2' }} EUR</td>
-                </tr>
-              </table>
-              <ng-template #emptyPurchases><p class="muted">Aucun achat enregistre.</p></ng-template>
-            </div>
-          </section>
+              <div class="stack">
+                <h4>Achats du client</h4>
+                <table class="table compact" *ngIf="customer.purchases.length > 0; else emptyPurchases">
+                  <thead>
+                    <tr><th>Quand</th><th>Type</th><th>Detail</th><th>Total</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let purchase of customer.purchases">
+                      <td>{{ purchase.soldAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                      <td>{{ purchase.type }}</td>
+                      <td>{{ purchase.label }}</td>
+                      <td>{{ purchase.totalAmount | number:'1.2-2' }} EUR</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <ng-template #emptyPurchases><p class="muted">Aucun achat enregistre.</p></ng-template>
+              </div>
+            </section>
+          </ng-template>
         </article>
       </div>
     </section>
   `,
-  styles: `.page,.stack{display:grid;gap:1rem}.hero{display:grid;gap:.5rem}.eyebrow{margin:0;color:#9a3412;text-transform:uppercase;letter-spacing:.12em;font-size:.72rem}.lede{margin:0;max-width:56rem;color:#475569}.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:1.25rem}.panel{background:linear-gradient(180deg,#fff,#fff7ed);padding:1.25rem;border-radius:1.25rem;box-shadow:0 18px 40px rgba(15,23,42,.08)}.field{display:grid;gap:.45rem}.field span{font-size:.86rem;font-weight:700;color:#334155}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:.8rem;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}.compact th,.compact td{padding:.6rem}.facts{display:grid;gap:.35rem;padding:.9rem 1rem;background:#fff;border-radius:1rem;border:1px solid #fed7aa}.facts p{margin:0}.actions{display:flex;gap:.75rem;flex-wrap:wrap}.ghost{background:#fff;color:#334155;border:1px solid #cbd5e1}.muted{margin:0;color:#64748b}.error{margin:0;color:#991b1b;font-weight:700}input,select,button{padding:.85rem .95rem;border-radius:.85rem;border:1px solid #cbd5e1;font:inherit}button{background:#0f172a;color:#fff;border:0;font-weight:700;cursor:pointer}@media(max-width:1100px){.grid{grid-template-columns:1fr}}`,
+  styles: `
+    .page, .stack { display: grid; gap: 1rem; }
+    .hero { display: grid; gap: 0.8rem; }
+    .eyebrow { margin: 0; color: #9a3412; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; }
+    .lede { margin: 0; max-width: 56rem; color: #475569; }
+    .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    input, select { padding: 0.85rem 0.95rem; border-radius: 0.85rem; border: 1px solid #cbd5e1; font: inherit; background: #fff; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .summary { margin: 0; color: #334155; font-weight: 600; }
+    .pager { display: inline-flex; align-items: center; gap: 0.75rem; color: #475569; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1fr) 0fr; gap: 1.25rem; align-items: start; transition: grid-template-columns 220ms ease-out; }
+    .grid.panel-open { grid-template-columns: minmax(0, 1.2fr) minmax(24rem, 1fr); }
+    .panel { background: linear-gradient(180deg, #fff, #fff7ed); padding: 1.25rem; border-radius: 1.25rem; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); }
+    .list-panel { overflow: hidden; }
+    .panel-header, .side-panel-header { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+    .panel-header h3, .side-panel-header h3 { margin: 0; }
+    .field { display: grid; gap: 0.45rem; }
+    .field span { font-size: 0.86rem; font-weight: 700; color: #334155; }
+    .table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 1rem; overflow: hidden; table-layout: fixed; }
+    .table th, .table td { padding: 0.78rem 0.8rem; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+    .table th { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
+    .compact th, .compact td { padding: 0.6rem; }
+    tbody tr { transition: background 160ms ease; }
+    tbody tr:hover, tbody tr.active { background: #fff7ed; }
+    .facts { display: grid; gap: 0.35rem; padding: 0.9rem 1rem; background: #fff; border-radius: 1rem; border: 1px solid #fed7aa; }
+    .facts p { margin: 0; }
+    .debt-summary { display: flex; gap: 0.5rem; align-items: center; }
+    .money-alert-icon { position: relative; display: inline-block; width: 1.3rem; height: 1.1rem; }
+    .money-alert-icon .bill { position: absolute; border-radius: 0.2rem; background: linear-gradient(180deg, #fecaca, #fca5a5); border: 1px solid #b91c1c; box-shadow: inset 0 0 0 1px rgba(255,255,255,.24); }
+    .money-alert-icon .bill::after { content: ''; position: absolute; inset: 0.22rem 0.28rem; border: 1px solid rgba(127,29,29,.55); border-radius: 0.16rem; }
+    .money-alert-icon .bill.back { width: 0.82rem; height: 0.56rem; top: 0.26rem; left: 0.1rem; opacity: 0.78; }
+    .money-alert-icon .bill.front { width: 0.88rem; height: 0.6rem; top: 0.08rem; left: 0.28rem; }
+    .money-alert-icon .slash { position: absolute; width: 0.16rem; height: 1.18rem; background: #991b1b; border-radius: 999px; transform: rotate(38deg); top: -0.04rem; left: 0.56rem; box-shadow: 0 0 0 1px rgba(255,255,255,.2); }
+    .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .muted { margin: 0; color: #64748b; }
+    .empty { text-align: center; color: #64748b; padding: 1rem; }
+    .error { margin: 0; color: #991b1b; font-weight: 700; }
+    .side-panel {
+      overflow: hidden;
+      opacity: 0;
+      transform: translateX(14px) scale(0.985);
+      transform-origin: right center;
+      pointer-events: none;
+      max-width: 0;
+      padding-inline: 0;
+      transition:
+        opacity 170ms ease-out,
+        transform 220ms ease-out,
+        max-width 220ms ease-out,
+        padding-inline 220ms ease-out;
+    }
+    .side-panel.open {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+      max-width: 100%;
+      padding-inline: 1.25rem;
+    }
+
+    @media (max-width: 1100px) {
+      .grid, .grid.panel-open { grid-template-columns: 1fr; }
+      .side-panel, .side-panel.open { max-width: none; padding-inline: 1.25rem; opacity: 1; transform: none; }
+      .side-panel:not(.open) { display: none; }
+    }
+  `,
 })
 export class CustomersPageComponent {
   private readonly api = inject(CustomersApiService);
   private readonly offersApi = inject(SubscriptionOffersApiService);
   private readonly fb = inject(FormBuilder);
 
+  readonly pageSizeOptions = [5, 10, 20, 50];
   readonly customers = signal<Customer[]>([]);
   readonly offers = signal<SubscriptionOffer[]>([]);
   readonly selected = signal<CustomerDetails | null>(null);
+  readonly panelMode = signal<'create' | 'edit'>('create');
+  readonly isPanelOpen = signal(false);
+  readonly page = signal(1);
   readonly error = signal('');
 
-  readonly filters = this.fb.nonNullable.group({ term: [''] });
+  readonly filters = this.fb.nonNullable.group({ term: [''], pageSize: [10] });
+  readonly filterState = signal(this.filters.getRawValue());
   readonly createForm = this.fb.nonNullable.group({
-    name: [''],
+    name: ['', Validators.required],
     type: ['WALK_IN' as 'WALK_IN' | 'SUBSCRIBER'],
     subscriptionOfferId: [''],
   });
-  readonly editForm = this.fb.nonNullable.group({ name: [''] });
+  readonly editForm = this.fb.nonNullable.group({ name: ['', Validators.required] });
+
+  readonly filteredCustomers = computed(() => {
+    const term = this.filterState().term.trim().toLocaleLowerCase();
+    return this.customers().filter((item) => term.length === 0 || item.name.toLocaleLowerCase().includes(term));
+  });
+
+  readonly totalPages = computed(() => {
+    const pageSize = Number(this.filterState().pageSize) || 10;
+    return Math.max(1, Math.ceil(this.filteredCustomers().length / pageSize));
+  });
+
+  readonly currentPage = computed(() => Math.min(this.page(), this.totalPages()));
+
+  readonly paginatedCustomers = computed(() => {
+    const pageSize = Number(this.filterState().pageSize) || 10;
+    const start = (this.currentPage() - 1) * pageSize;
+    return this.filteredCustomers().slice(start, start + pageSize);
+  });
 
   constructor() {
     this.load();
     this.loadOffers();
+
     this.filters.controls.term.valueChanges.pipe(
-      map((value) => value.trim()),
       debounceTime(150),
       distinctUntilChanged(),
       takeUntilDestroyed(),
-    ).subscribe(() => this.load());
+    ).subscribe(() => {
+      this.filterState.set({
+        term: this.filters.controls.term.value ?? '',
+        pageSize: Number(this.filters.controls.pageSize.value ?? 10),
+      });
+      this.page.set(1);
+    });
+
+    this.filters.controls.pageSize.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.filterState.set({
+        term: this.filters.controls.term.value ?? '',
+        pageSize: Number(this.filters.controls.pageSize.value ?? 10),
+      });
+      this.page.set(1);
+    });
   }
 
   load(): void {
-    const term = this.filters.getRawValue().term;
-    this.api.search(term).subscribe({
+    this.api.search('').subscribe({
       next: (items) => {
         this.customers.set(items);
         this.error.set('');
@@ -155,6 +300,29 @@ export class CustomersPageComponent {
       next: (offers) => this.offers.set(offers),
       error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Chargement des offres impossible'),
     });
+  }
+
+  openCreatePanel(): void {
+    this.panelMode.set('create');
+    this.selected.set(null);
+    this.createForm.reset({ name: '', type: 'WALK_IN', subscriptionOfferId: '' });
+    this.error.set('');
+    this.isPanelOpen.set(true);
+  }
+
+  closePanel(): void {
+    this.selected.set(null);
+    this.isPanelOpen.set(false);
+    this.editForm.reset({ name: '' });
+    this.error.set('');
+  }
+
+  previousPage(): void {
+    this.page.update((page) => Math.max(1, page - 1));
+  }
+
+  nextPage(): void {
+    this.page.update((page) => Math.min(this.totalPages(), page + 1));
   }
 
   createCustomer(): void {
@@ -173,7 +341,7 @@ export class CustomersPageComponent {
       subscriptionOfferId: payload.type === 'SUBSCRIBER' ? payload.subscriptionOfferId : null,
     }).subscribe({
       next: () => {
-        this.createForm.reset({ name: '', type: 'WALK_IN', subscriptionOfferId: '' });
+        this.closePanel();
         this.load();
       },
       error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Creation impossible'),
@@ -184,16 +352,13 @@ export class CustomersPageComponent {
     this.api.get(customerId).subscribe({
       next: (customer) => {
         this.selected.set(customer);
+        this.panelMode.set('edit');
         this.editForm.patchValue({ name: customer.name });
         this.error.set('');
+        this.isPanelOpen.set(true);
       },
       error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Chargement de la fiche impossible'),
     });
-  }
-
-  clearSelection(): void {
-    this.selected.set(null);
-    this.editForm.reset({ name: '' });
   }
 
   save(customerId: string): void {

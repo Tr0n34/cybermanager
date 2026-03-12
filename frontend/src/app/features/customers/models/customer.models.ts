@@ -4,6 +4,7 @@ export interface Customer {
   type: 'WALK_IN' | 'SUBSCRIBER';
   status: 'ACTIVE' | 'INACTIVE';
   remainingMinutes: number;
+  openDebtAmount: number;
 }
 
 export interface CustomerPurchase {
@@ -17,4 +18,5 @@ export interface CustomerPurchase {
 export interface CustomerDetails extends Customer {
   currentSubscriptionLabel: string | null;
   purchases: CustomerPurchase[];
+  debts: { debtId: string; label: string; amount: number; status: 'OPEN' | 'SETTLED'; createdAt: string; settledAt: string | null }[];
 }

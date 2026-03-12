@@ -17,6 +17,13 @@ CyberManager doit permettre a un utilisateur de se connecter de maniere securise
 
 Permettre l'authentification d'un utilisateur via login / mot de passe et la recuperation de son profil applicatif.
 
+## Ameliorations integrees
+
+- separation explicite du module `auth` par rapport au referentiel `users`
+- exposition de deux endpoints REST dedies : connexion et recuperation de l'utilisateur courant
+- prise en charge d'un jeton JWT pour transporter l'identite et les roles
+- gestion d'erreurs API homogenes cote authentification
+
 ## Bounded context
 
 - auth
@@ -38,8 +45,8 @@ Permettre l'authentification d'un utilisateur via login / mot de passe et la rec
 ### Domain
 - User
 - UserId
-- Email
-- Role
+- EmailAddress
+- AppRole
 - PasswordHash
 
 ### Application
@@ -49,14 +56,18 @@ Permettre l'authentification d'un utilisateur via login / mot de passe et la rec
 - CurrentUserView
 
 ### Infrastructure
-- UserJpaEntity
-- UserJpaRepository
+- AuthenticatedUserRepositoryAdapter
 - PasswordVerifierAdapter
 - JwtTokenProvider
+- JwtAccessTokenReader
 
 ### API
 - POST /api/auth/login
 - GET /api/auth/me
+
+### Contrats API attendus
+- `POST /api/auth/login` recoit `email` et `password`, puis retourne un access token, l'utilisateur courant et ses roles
+- `GET /api/auth/me` attend un header `Authorization: Bearer <token>` et retourne le profil courant resolu depuis le jeton
 
 ## Frontend
 
@@ -79,6 +90,8 @@ Permettre l'authentification d'un utilisateur via login / mot de passe et la rec
 - l'utilisateur authentifie ne doit plus rester sur l'ecran de login
 - un message d'erreur lisible est affiche si l'authentification echoue
 - la session stocke le jeton et le profil courant pour les ecrans suivants
+- le profil courant est recharge au demarrage de l'application si un jeton est deja stocke
+- toute reponse `401` invalide la session locale et renvoie vers l'ecran de connexion
 
 ## Criteres d'acceptation
 
@@ -86,3 +99,4 @@ Permettre l'authentification d'un utilisateur via login / mot de passe et la rec
 - un utilisateur invalide recoit une erreur d'authentification
 - un utilisateur inactif ne peut pas se connecter
 - le frontend redirige vers le tableau de bord apres connexion
+- l'appel `GET /api/auth/me` restitue le meme utilisateur que celui authentifie par `POST /api/auth/login`

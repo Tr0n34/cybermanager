@@ -7,6 +7,7 @@ import com.cybermanager.domain.model.sales.ConnectionPricingTier;
 import com.cybermanager.domain.model.sales.Sale;
 import com.cybermanager.domain.model.shared.Money;
 import com.cybermanager.domain.port.catalog.ProductRepository;
+import com.cybermanager.domain.port.customer.DebtRepository;
 import com.cybermanager.domain.port.sales.ConnectionPricingRepository;
 import com.cybermanager.domain.port.sales.SaleRepository;
 import com.cybermanager.domain.port.subscription.SubscriptionOfferRepository;
@@ -29,7 +30,8 @@ class SalesApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         ProductRepository productRepository = mock(ProductRepository.class);
         SubscriptionOfferRepository offerRepository = mock(SubscriptionOfferRepository.class);
-        SalesApplicationService service = new SalesApplicationService(saleRepository, pricingRepository, productRepository, offerRepository);
+        DebtRepository debtRepository = mock(DebtRepository.class);
+        SalesApplicationService service = new SalesApplicationService(saleRepository, pricingRepository, productRepository, offerRepository, debtRepository);
 
         ConnectionPricingRule rule = new ConnectionPricingRule(List.of(
                 new ConnectionPricingTier(30, Money.of("1.50")),
@@ -39,7 +41,7 @@ class SalesApplicationServiceTest {
         when(pricingRepository.getCurrentRule()).thenReturn(rule);
         when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var result = service.execute(new CreateConnectionTimeSaleCommand("admin@cybermanager.local", Set.of("ADMIN"), UUID.randomUUID(), 90));
+        var result = service.execute(new CreateConnectionTimeSaleCommand("admin@cybermanager.local", Set.of("ADMIN"), UUID.randomUUID(), 90, false));
 
         assertEquals(new BigDecimal("4.00"), result.totalAmount());
     }
@@ -50,7 +52,8 @@ class SalesApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         ProductRepository productRepository = mock(ProductRepository.class);
         SubscriptionOfferRepository offerRepository = mock(SubscriptionOfferRepository.class);
-        SalesApplicationService service = new SalesApplicationService(saleRepository, pricingRepository, productRepository, offerRepository);
+        DebtRepository debtRepository = mock(DebtRepository.class);
+        SalesApplicationService service = new SalesApplicationService(saleRepository, pricingRepository, productRepository, offerRepository, debtRepository);
 
         when(pricingRepository.save(any(ConnectionPricingRule.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

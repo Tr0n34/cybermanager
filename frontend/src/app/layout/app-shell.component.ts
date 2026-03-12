@@ -23,6 +23,7 @@ import { SessionService } from '../core/services/session.service';
           <a routerLink="/sales" routerLinkActive="active">Ventes</a>
           <a routerLink="/sales/pricing" routerLinkActive="active">Tarifs temps</a>
           <a routerLink="/sessions" routerLinkActive="active">Sessions</a>
+          <a routerLink="/debts" routerLinkActive="active">Dettes</a>
           <a routerLink="/monitoring" routerLinkActive="active">Monitoring</a>
           <a routerLink="/reporting" routerLinkActive="active">Historique</a>
         </nav>

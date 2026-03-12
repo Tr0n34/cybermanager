@@ -17,6 +17,13 @@ Le cybercafe doit pouvoir revoir les clients d'une journee donnee avec leurs usa
 
 Permettre la consultation de l'historique d'une journee avec le detail des consommations, abonnements et durees d'utilisation.
 
+## Ameliorations integrees
+
+- ajout d'un service applicatif de reporting pour la consultation d'une journee passee
+- exposition d'un endpoint de synthese par jour et d'un endpoint de detail client
+- reutilisation d'un modele de restitution centre sur les ventes et sessions historisees
+- ajout d'une page Angular de reporting avec selecteur de date, liste et detail
+
 ## Bounded context
 
 - reporting
@@ -38,7 +45,6 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 ### Cas d'usage
 - GetDayHistory
 - GetCustomerDayHistory
-- SearchDayCustomersHistory
 
 ### Domain
 - DayHistory
@@ -61,6 +67,10 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 - GET /api/history/days/{date}/customers
 - GET /api/history/days/{date}/customers/{id}
 
+### Donnees restituees
+- `GET /api/history/days/{date}` et `GET /api/history/days/{date}/customers` retournent la date et la liste des clients avec `totalMinutes` et `salesTotal`
+- `GET /api/history/days/{date}/customers/{id}` retourne le detail de ventes et de sessions pour le client demande
+
 ## Frontend
 
 ### Ecrans
@@ -79,6 +89,7 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 - la liste des clients de la journee est affichee dans le meme ecran
 - la selection d'un client ouvre son detail de journee sans perdre le contexte de date
 - le changement de date recharge les indicateurs et les listes associees
+- l'ecran doit permettre de consulter rapidement la synthese d'une journee avant d'ouvrir un detail client
 - les erreurs de chargement sont visibles dans la page
 
 ## Criteres d'acceptation

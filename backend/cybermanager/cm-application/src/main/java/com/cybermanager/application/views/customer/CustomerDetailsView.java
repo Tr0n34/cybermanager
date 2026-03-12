@@ -10,6 +10,7 @@ public record CustomerDetailsView(
         String status,
         int remainingMinutes,
         String currentSubscriptionLabel,
-        List<CustomerSaleView> purchases
+        List<CustomerSaleView> purchases,
+        List<CustomerDebtView> debts
 ) {
 }
