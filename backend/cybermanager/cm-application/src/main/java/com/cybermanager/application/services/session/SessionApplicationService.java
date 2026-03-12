@@ -1,5 +1,7 @@
 package com.cybermanager.application.services.session;
 
+import com.cybermanager.application.commands.session.PauseSessionCommand;
+import com.cybermanager.application.commands.session.ResumeSessionCommand;
 import com.cybermanager.application.commands.session.StartSessionCommand;
 import com.cybermanager.application.commands.session.StopSessionCommand;
 import com.cybermanager.application.queries.session.SearchSessionsOfDayQuery;
@@ -7,6 +9,8 @@ import com.cybermanager.application.services.shared.DateTimeLabelFormatter;
 import com.cybermanager.application.services.shared.BusinessErrorType;
 import com.cybermanager.application.services.shared.BusinessException;
 import com.cybermanager.application.usecases.session.GetCurrentSessionsUseCase;
+import com.cybermanager.application.usecases.session.PauseSessionUseCase;
+import com.cybermanager.application.usecases.session.ResumeSessionUseCase;
 import com.cybermanager.application.usecases.session.SearchSessionsOfDayUseCase;
 import com.cybermanager.application.usecases.session.StartSessionUseCase;
 import com.cybermanager.application.usecases.session.StopSessionUseCase;
@@ -24,12 +28,14 @@ import com.cybermanager.domain.model.shared.Money;
 import com.cybermanager.domain.port.customer.CustomerRepository;
 import com.cybermanager.domain.port.customer.DebtRepository;
 import com.cybermanager.domain.port.sales.ConnectionPricingRepository;
+import com.cybermanager.domain.port.sales.SaleRepository;
 import com.cybermanager.domain.port.session.CafeSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -37,6 +43,8 @@ import java.util.List;
 public class SessionApplicationService implements
         StartSessionUseCase,
         StopSessionUseCase,
+        PauseSessionUseCase,
+        ResumeSessionUseCase,
         SearchSessionsOfDayUseCase,
         GetCurrentSessionsUseCase {
     private static final String DEFAULT_WORKSTATION = "SESSION";
@@ -45,17 +53,20 @@ public class SessionApplicationService implements
     private final CustomerRepository customerRepository;
     private final ConnectionPricingRepository connectionPricingRepository;
     private final DebtRepository debtRepository;
+    private final SaleRepository saleRepository;
 
     public SessionApplicationService(
             CafeSessionRepository sessionRepository,
             CustomerRepository customerRepository,
             ConnectionPricingRepository connectionPricingRepository,
-            DebtRepository debtRepository
+            DebtRepository debtRepository,
+            SaleRepository saleRepository
     ) {
         this.sessionRepository = sessionRepository;
         this.customerRepository = customerRepository;
         this.connectionPricingRepository = connectionPricingRepository;
         this.debtRepository = debtRepository;
+        this.saleRepository = saleRepository;
     }
 
     @Override
@@ -91,20 +102,45 @@ public class SessionApplicationService implements
         var customer = customerRepository.findById(session.customerId())
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
 
+        LocalDateTime stoppedAt = LocalDateTime.now();
         Money price = Money.of("0");
         if (customer.type() == CustomerType.WALK_IN) {
             ConnectionPricingRule pricing = connectionPricingRepository.getCurrentRule();
-            int minutes = (int) Math.max(1, java.time.Duration.between(session.startedAt(), LocalDateTime.now()).toMinutes());
+            int minutes = session.consumedMinutesUntil(stoppedAt);
             price = pricing.priceForMinutes(minutes);
-            if (price.amount().signum() > 0) {
-                debtRepository.save(DebtRecord.create(customer.id(), "Session du " + DateTimeLabelFormatter.format(session.startedAt()), price, LocalDateTime.now()));
+            if (!command.paid() && price.amount().signum() > 0) {
+                debtRepository.save(DebtRecord.create(customer.id(), "Session du " + DateTimeLabelFormatter.format(session.startedAt()), price, stoppedAt));
             }
         } else {
-            int consumedMinutes = (int) Math.max(1, java.time.Duration.between(session.startedAt(), LocalDateTime.now()).toMinutes());
+            int consumedMinutes = session.consumedMinutesUntil(stoppedAt);
             customer = customerRepository.save(customer.deductMinutes(consumedMinutes));
         }
 
-        return toView(sessionRepository.save(session.stop(LocalDateTime.now(), price)), customer);
+        return toView(sessionRepository.save(session.stop(stoppedAt, price, command.paid())), customer);
+    }
+
+    @Override
+    public SessionView execute(PauseSessionCommand command) {
+        var session = sessionRepository.findById(new SessionId(command.sessionId()))
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SESSION_NOT_FOUND", "Session not found"));
+        if (session.paused()) {
+            throw new BusinessException(BusinessErrorType.CONFLICT, "SESSION_ALREADY_PAUSED", "Session is already paused");
+        }
+        var customer = customerRepository.findById(session.customerId())
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
+        return toView(sessionRepository.save(session.pause(LocalDateTime.now())), customer);
+    }
+
+    @Override
+    public SessionView execute(ResumeSessionCommand command) {
+        var session = sessionRepository.findById(new SessionId(command.sessionId()))
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SESSION_NOT_FOUND", "Session not found"));
+        if (!session.paused()) {
+            throw new BusinessException(BusinessErrorType.CONFLICT, "SESSION_NOT_PAUSED", "Session is not paused");
+        }
+        var customer = customerRepository.findById(session.customerId())
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
+        return toView(sessionRepository.save(session.resume(LocalDateTime.now())), customer);
     }
 
     @Transactional(readOnly = true)
@@ -128,6 +164,37 @@ public class SessionApplicationService implements
     }
 
     private SessionView toView(CafeSession session, Customer customer) {
+        LocalDateTime referenceTime = session.endedAt() == null ? LocalDateTime.now() : session.endedAt();
+        int consumedSeconds = session.endedAt() == null ? session.consumedSecondsUntil(referenceTime) : session.consumedSeconds();
+        int consumedMinutes = session.endedAt() == null ? session.consumedMinutesUntil(referenceTime) : Math.max(0, (session.consumedSeconds() + 59) / 60);
+        Money connectionAmount = session.calculatedPrice();
+        if (session.endedAt() == null && customer.type() == CustomerType.WALK_IN) {
+            connectionAmount = connectionPricingRepository.getCurrentRule().priceForMinutes(consumedMinutes);
+        }
+        var salesOfDay = saleRepository.findByCustomerId(customer.id()).stream()
+                .filter(sale -> sale.soldAt().toLocalDate().equals(referenceTime.toLocalDate()))
+                .toList();
+        Money purchasesAmount = salesOfDay.stream()
+                .map(sale -> sale.totalAmount())
+                .reduce(Money.of("0"), Money::add);
+        var allOpenDebts = debtRepository.findByCustomerId(customer.id()).stream()
+                .filter(debt -> debt.status() == com.cybermanager.domain.model.customer.DebtStatus.OPEN)
+                .toList();
+        var openDebtsOfDay = allOpenDebts.stream()
+                .filter(debt -> debt.createdAt().toLocalDate().equals(referenceTime.toLocalDate()))
+                .toList();
+        Money openDebtAmount = allOpenDebts.stream()
+                .map(com.cybermanager.domain.model.customer.DebtRecord::amount)
+                .reduce(Money.of("0"), Money::add);
+        BigDecimal openSalesDebtAmount = openDebtsOfDay.stream()
+                .filter(debt -> debt.label().startsWith("Vente "))
+                .map(debt -> debt.amount().amount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal paidPurchasesAmount = purchasesAmount.amount().subtract(openSalesDebtAmount).max(BigDecimal.ZERO);
+        BigDecimal dueConnectionAmount = session.paid() ? BigDecimal.ZERO : connectionAmount.amount();
+        BigDecimal paidConnectionAmount = session.paid() ? connectionAmount.amount() : BigDecimal.ZERO;
+        Money totalAmountDue = new Money(dueConnectionAmount.add(openSalesDebtAmount));
+        Money totalPaidAmount = new Money(paidPurchasesAmount.add(paidConnectionAmount));
         return new SessionView(
                 session.id().value(),
                 customer.id().value(),
@@ -137,8 +204,15 @@ public class SessionApplicationService implements
                 session.workstation(),
                 session.startedAt(),
                 session.endedAt(),
-                session.consumedMinutes(),
-                session.calculatedPrice().amount()
+                session.paused(),
+                session.paid() && openDebtAmount.amount().compareTo(BigDecimal.ZERO) == 0,
+                consumedSeconds,
+                consumedMinutes,
+                connectionAmount.amount(),
+                purchasesAmount.amount(),
+                openDebtAmount.amount(),
+                totalAmountDue.amount(),
+                totalPaidAmount.amount()
         );
     }
 }

@@ -10,6 +10,7 @@ public final class SessionDtos {
     }
 
     public record StartSessionRequest(UUID customerId, String customerName) {}
+    public record StopSessionRequest(boolean paid) {}
 
     public record SessionResponse(
             UUID sessionId,
@@ -20,8 +21,15 @@ public final class SessionDtos {
             String workstation,
             LocalDateTime startedAt,
             LocalDateTime endedAt,
+            boolean paused,
+            boolean paid,
+            int consumedSeconds,
             int consumedMinutes,
-            BigDecimal calculatedPrice
+            BigDecimal calculatedPrice,
+            BigDecimal purchasesAmount,
+            BigDecimal openDebtAmount,
+            BigDecimal totalAmountDue,
+            BigDecimal totalPaidAmount
     ) {}
 
     public record CurrentSessionsResponse(List<SessionResponse> sessions) {}

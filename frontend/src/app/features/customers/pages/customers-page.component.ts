@@ -7,6 +7,9 @@ import { debounceTime, distinctUntilChanged } from 'rxjs';
 
 import type { Customer, CustomerDetails } from '../models/customer.models';
 import { CustomersApiService } from '../services/customers-api.service';
+import type { Product } from '../../products/models/product.models';
+import { ProductsApiService } from '../../products/services/products-api.service';
+import { SalesApiService } from '../../sales/services/sales-api.service';
 import type { SubscriptionOffer } from '../../subscriptions/models/subscription-offer.models';
 import { SubscriptionOffersApiService } from '../../subscriptions/services/subscription-offers-api.service';
 
@@ -122,13 +125,56 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
                   <p><strong>Abonnements :</strong> {{ customer.currentSubscriptionLabel ?? 'Aucun' }}</p>
                   <p *ngIf="customer.type === 'SUBSCRIBER'" class="muted">Les abonnements se cumulent.</p>
                   <p><strong>Credit disponible :</strong> {{ customer.remainingMinutes }} min</p>
+                  <p><strong>Total paye sur tous les achats :</strong> {{ totalPaidPurchases(customer) | number:'1.2-2' }} EUR</p>
+                  <p><strong>Total paye sur forfaits et produits :</strong> {{ totalPaidSales(customer) | number:'1.2-2' }} EUR</p>
                   <p *ngIf="customer.debts.length > 0" class="debt-summary"><strong>Dettes :</strong> <span class="money-alert-icon debt-indicator" title="Dettes ouvertes"><span class="bill back"></span><span class="bill front"></span><span class="slash"></span></span></p>
                 </div>
                 <div class="actions">
                   <button type="submit" [disabled]="editForm.invalid">Enregistrer</button>
-                  <button type="button" class="ghost" (click)="openCreatePanel()">Nouveau</button>
                 </div>
               </form>
+
+              <div class="split-actions">
+                <section class="stack action-block">
+                  <h4>Ajouter un abonnement</h4>
+                  <form [formGroup]="subscriptionSaleForm" (ngSubmit)="sellSubscription(customer.customerId)" class="stack">
+                    <label class="field">
+                      <span>Offre</span>
+                      <select formControlName="subscriptionOfferId">
+                        <option value="">Choisir une offre</option>
+                        <option *ngFor="let offer of offers()" [value]="offer.offerId">{{ offer.name }} - {{ offer.includedMinutes }} min</option>
+                      </select>
+                    </label>
+                    <label class="checkbox">
+                      <input type="checkbox" formControlName="createDebt" />
+                      <span>Creer une dette au lieu d'encaisser</span>
+                    </label>
+                    <button type="submit" [disabled]="subscriptionSaleForm.invalid">Vendre l'abonnement</button>
+                  </form>
+                </section>
+
+                <section class="stack action-block">
+                  <h4>Vendre un produit</h4>
+                  <form [formGroup]="productSaleForm" (ngSubmit)="sellProduct(customer.customerId)" class="stack">
+                    <label class="field">
+                      <span>Produit</span>
+                      <select formControlName="productId">
+                        <option value="">Choisir un produit</option>
+                        <option *ngFor="let product of products()" [value]="product.productId">{{ product.name }} - {{ product.price | number:'1.2-2' }} EUR</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Quantite</span>
+                      <input type="number" min="1" formControlName="quantity" />
+                    </label>
+                    <label class="checkbox">
+                      <input type="checkbox" formControlName="createDebt" />
+                      <span>Creer une dette au lieu d'encaisser</span>
+                    </label>
+                    <button type="submit" [disabled]="productSaleForm.invalid">Vendre le produit</button>
+                  </form>
+                </section>
+              </div>
 
               <div class="stack">
                 <h4>Achats du client</h4>
@@ -144,6 +190,12 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
                       <td>{{ purchase.totalAmount | number:'1.2-2' }} EUR</td>
                     </tr>
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="3"><strong>Total paye</strong></td>
+                      <td><strong>{{ totalPaidPurchases(customer) | number:'1.2-2' }} EUR</strong></td>
+                    </tr>
+                  </tfoot>
                 </table>
                 <ng-template #emptyPurchases><p class="muted">Aucun achat enregistre.</p></ng-template>
               </div>
@@ -179,6 +231,9 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
     tbody tr:hover, tbody tr.active { background: #fff7ed; }
     .facts { display: grid; gap: 0.35rem; padding: 0.9rem 1rem; background: #fff; border-radius: 1rem; border: 1px solid #fed7aa; }
     .facts p { margin: 0; }
+    .split-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem; }
+    .action-block { padding: 0.9rem 1rem; background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; }
+    .action-block h4 { margin: 0; }
     .debt-summary { display: flex; gap: 0.5rem; align-items: center; }
     .money-alert-icon { position: relative; display: inline-block; width: 1.3rem; height: 1.1rem; }
     .money-alert-icon .bill { position: absolute; border-radius: 0.2rem; background: linear-gradient(180deg, #fecaca, #fca5a5); border: 1px solid #b91c1c; box-shadow: inset 0 0 0 1px rgba(255,255,255,.24); }
@@ -214,6 +269,7 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
 
     @media (max-width: 1100px) {
       .grid, .grid.panel-open { grid-template-columns: 1fr; }
+      .split-actions { grid-template-columns: 1fr; }
       .side-panel, .side-panel.open { max-width: none; padding-inline: 1.25rem; opacity: 1; transform: none; }
       .side-panel:not(.open) { display: none; }
     }
@@ -221,12 +277,15 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
 })
 export class CustomersPageComponent {
   private readonly api = inject(CustomersApiService);
+  private readonly productsApi = inject(ProductsApiService);
+  private readonly salesApi = inject(SalesApiService);
   private readonly offersApi = inject(SubscriptionOffersApiService);
   private readonly fb = inject(FormBuilder);
 
   readonly pageSizeOptions = [5, 10, 20, 50];
   readonly customers = signal<Customer[]>([]);
   readonly offers = signal<SubscriptionOffer[]>([]);
+  readonly products = signal<Product[]>([]);
   readonly selected = signal<CustomerDetails | null>(null);
   readonly panelMode = signal<'create' | 'edit'>('create');
   readonly isPanelOpen = signal(false);
@@ -241,6 +300,15 @@ export class CustomersPageComponent {
     subscriptionOfferId: [''],
   });
   readonly editForm = this.fb.nonNullable.group({ name: ['', Validators.required] });
+  readonly subscriptionSaleForm = this.fb.nonNullable.group({
+    subscriptionOfferId: ['', Validators.required],
+    createDebt: [false],
+  });
+  readonly productSaleForm = this.fb.nonNullable.group({
+    productId: ['', Validators.required],
+    quantity: [1, [Validators.required, Validators.min(1)]],
+    createDebt: [false],
+  });
 
   readonly filteredCustomers = computed(() => {
     const term = this.filterState().term.trim().toLocaleLowerCase();
@@ -263,6 +331,7 @@ export class CustomersPageComponent {
   constructor() {
     this.load();
     this.loadOffers();
+    this.productsApi.search('', 'ACTIVE', '').subscribe((products) => this.products.set(products));
 
     this.filters.controls.term.valueChanges.pipe(
       debounceTime(150),
@@ -354,6 +423,8 @@ export class CustomersPageComponent {
         this.selected.set(customer);
         this.panelMode.set('edit');
         this.editForm.patchValue({ name: customer.name });
+        this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
+        this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
         this.error.set('');
         this.isPanelOpen.set(true);
       },
@@ -370,5 +441,58 @@ export class CustomersPageComponent {
       },
       error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Sauvegarde impossible'),
     });
+  }
+
+  sellSubscription(customerId: string): void {
+    if (this.subscriptionSaleForm.invalid) {
+      this.subscriptionSaleForm.markAllAsTouched();
+      return;
+    }
+    const payload = this.subscriptionSaleForm.getRawValue();
+    this.salesApi.subscriptionSale({
+      customerId,
+      subscriptionOfferId: payload.subscriptionOfferId,
+      createDebt: payload.createDebt,
+    }).subscribe({
+      next: () => {
+        this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
+        this.open(customerId);
+        this.load();
+      },
+      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Vente d abonnement impossible'),
+    });
+  }
+
+  sellProduct(customerId: string): void {
+    if (this.productSaleForm.invalid) {
+      this.productSaleForm.markAllAsTouched();
+      return;
+    }
+    const payload = this.productSaleForm.getRawValue();
+    this.salesApi.productSale({
+      customerId,
+      lines: [{ productId: payload.productId, quantity: payload.quantity }],
+      createDebt: payload.createDebt,
+    }).subscribe({
+      next: () => {
+        this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
+        this.open(customerId);
+        this.load();
+      },
+      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Vente produit impossible'),
+    });
+  }
+
+  totalPaidPurchases(customer: CustomerDetails): number {
+    return customer.purchases
+      .filter((purchase) => !purchase.openDebt)
+      .reduce((total, purchase) => total + purchase.totalAmount, 0);
+  }
+
+  totalPaidSales(customer: CustomerDetails): number {
+    return customer.purchases
+      .filter((purchase) => !purchase.openDebt)
+      .filter((purchase) => purchase.type === 'SUBSCRIPTION' || purchase.type === 'PRODUCTS')
+      .reduce((total, purchase) => total + purchase.totalAmount, 0);
   }
 }

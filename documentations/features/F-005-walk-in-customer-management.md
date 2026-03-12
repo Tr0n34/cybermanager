@@ -33,6 +33,7 @@ Permettre la consultation, la recherche, la creation et la mise a jour des clien
 - la fiche client doit afficher les dettes ouvertes du client en ligne rouge
 - la liste des clients doit permettre de distinguer les `Client` et les `Abonne`
 - les abonnements du client sont cumulables
+- les dates et heures visibles dans la fiche client suivent le format `JJ/MM/AAAA HH:mm`
 
 ## Backend
 
@@ -91,11 +92,13 @@ Permettre la consultation, la recherche, la creation et la mise a jour des clien
 - toutes les zones de recherche possedent un label explicite
 - la recherche client par nom filtre la liste immediatement
 - la taille de page est configurable et la pagination reste dans la page
+- le tableau client reste compact pour afficher plus de lignes avec moins d'espace vertical
 - la creation permet de choisir entre `Client` et `Abonne`
 - si le type choisi est abonne, une offre d'abonnement doit etre selectionnee
 - le bouton `Nouveau client` ouvre un panneau de droite avec animation puis disparait tant que le panneau est ouvert
 - l'ouverture d'une fiche client affiche l'abonnement en cours, l'historique des achats et les dettes ouvertes en rouge
 - la fiche client rappelle que les abonnements se cumulent
+- le resume du detail signale l'existence de dettes par une icone rouge de non-paiement, sans repeter toute la liste a droite
 - la fiche detaillee reutilise le meme panneau que la creation et l'edition
 
 ## Criteres d'acceptation

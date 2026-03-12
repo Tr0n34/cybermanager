@@ -1,6 +1,7 @@
 package com.cybermanager.application.services.customer;
 
 import com.cybermanager.application.commands.customer.ConvertCustomerToSubscriberCommand;
+import com.cybermanager.application.commands.customer.CreateDebtFromSaleCommand;
 import com.cybermanager.application.commands.customer.CreateCustomerCommand;
 import com.cybermanager.application.commands.customer.SettleDebtCommand;
 import com.cybermanager.application.commands.customer.UpdateCustomerCommand;
@@ -10,6 +11,7 @@ import com.cybermanager.application.queries.customer.GetCustomerDetailsQuery;
 import com.cybermanager.application.queries.customer.SearchOpenDebtsQuery;
 import com.cybermanager.application.queries.customer.SearchCustomersQuery;
 import com.cybermanager.application.usecases.customer.ConvertCustomerToSubscriberUseCase;
+import com.cybermanager.application.usecases.customer.CreateDebtFromSaleUseCase;
 import com.cybermanager.application.usecases.customer.CreateCustomerUseCase;
 import com.cybermanager.application.usecases.customer.GetCustomerDetailsUseCase;
 import com.cybermanager.application.usecases.customer.SearchOpenDebtsUseCase;
@@ -53,6 +55,7 @@ public class CustomerApplicationService implements
         SearchCustomersUseCase,
         GetCustomerDetailsUseCase,
         ConvertCustomerToSubscriberUseCase,
+        CreateDebtFromSaleUseCase,
         SearchOpenDebtsUseCase,
         SettleDebtUseCase {
     private final CustomerRepository customerRepository;
@@ -159,10 +162,23 @@ public class CustomerApplicationService implements
 
     @Override
     public void execute(SettleDebtCommand command) {
-        ActorSupport.requireAdmin(command.actorRoles());
         var debt = debtRepository.findById(new DebtId(command.debtId()))
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "DEBT_NOT_FOUND", "Debt not found"));
         debtRepository.save(debt.settle(LocalDateTime.now()));
+    }
+
+    @Override
+    public void execute(CreateDebtFromSaleCommand command) {
+        var sale = saleRepository.findById(new com.cybermanager.domain.model.sales.SaleId(command.saleId()))
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SALE_NOT_FOUND", "Sale not found"));
+        var existingOpenDebt = debtRepository.findByCustomerId(sale.customerId()).stream()
+                .anyMatch(debt -> debt.status() == DebtStatus.OPEN
+                        && debt.label().equals(debtLabelForSale(sale))
+                        && debt.amount().amount().compareTo(sale.totalAmount().amount()) == 0);
+        if (existingOpenDebt) {
+            throw new BusinessException(BusinessErrorType.CONFLICT, "SALE_ALREADY_IN_DEBT", "Sale is already in debt");
+        }
+        debtRepository.save(DebtRecord.create(sale.customerId(), debtLabelForSale(sale), sale.totalAmount(), LocalDateTime.now()));
     }
 
     @Override
@@ -193,7 +209,19 @@ public class CustomerApplicationService implements
 
     private CustomerSaleView toSaleView(Sale sale) {
         String label = sale.lines().isEmpty() ? sale.type().name() : sale.lines().stream().map(SaleLine::label).reduce((first, second) -> first + ", " + second).orElse(sale.type().name());
-        return new CustomerSaleView(sale.id().value(), sale.type().name(), label, sale.soldAt(), sale.totalAmount().amount());
+        boolean openDebt = debtRepository.findByCustomerId(sale.customerId()).stream()
+                .anyMatch(debt -> debt.status() == DebtStatus.OPEN
+                        && debt.label().equals(debtLabelForSale(sale))
+                        && debt.amount().amount().compareTo(sale.totalAmount().amount()) == 0);
+        return new CustomerSaleView(sale.id().value(), sale.type().name(), label, sale.soldAt(), sale.totalAmount().amount(), openDebt);
+    }
+
+    private String debtLabelForSale(Sale sale) {
+        return switch (sale.type()) {
+            case PRODUCTS -> "Vente produits du " + com.cybermanager.application.services.shared.DateTimeLabelFormatter.format(sale.soldAt());
+            case SUBSCRIPTION -> "Vente abonnement du " + com.cybermanager.application.services.shared.DateTimeLabelFormatter.format(sale.soldAt());
+            case CONNECTION_TIME -> "Vente temps du " + com.cybermanager.application.services.shared.DateTimeLabelFormatter.format(sale.soldAt());
+        };
     }
 
     private CustomerDebtView toDebtView(DebtRecord debtRecord) {

@@ -23,6 +23,9 @@ Afficher une vue operationnelle de la journee avec les clients en cours et les c
 - exposition d'une liste synthese et d'un detail d'activite par client
 - agregats de suivi centres sur le temps consomme, le temps restant, le total des achats et l'etat de session
 - ajout d'une page Angular de monitoring avec service API et modeles dedies
+- ajout d'un encart superieur de synthese financiere (`Argent encaisse`, `Dette creee`)
+- enrichissement des lignes avec les montants de dettes et le type client / abonne
+- detail structure avec liste des ventes et evenements de session en francais
 
 ## Bounded context
 
@@ -40,6 +43,8 @@ Afficher une vue operationnelle de la journee avec les clients en cours et les c
 - la vue doit afficher les consommations produits du jour
 - la vue doit afficher les abonnements achetes du jour
 - la vue doit distinguer client occasionnel et abonne
+- l'argent encaisse correspond aux achats du jour moins les dettes ouvertes
+- la somme des dettes correspond aux dettes ouvertes visibles sur la journee
 
 ## Backend
 
@@ -67,6 +72,7 @@ Afficher une vue operationnelle de la journee avec les clients en cours et les c
 
 ### Donnees restituees
 - la liste retourne `customerId`, `name`, `type`, `remainingMinutes`, `consumedMinutes`, `purchasesTotal` et `activeSession`
+- la liste retourne aussi `debtTotal`, `collectedTotal` et `state`
 - le detail retourne l'historique des ventes et des sessions de la journee pour un client
 
 ## Frontend
@@ -90,6 +96,8 @@ Afficher une vue operationnelle de la journee avec les clients en cours et les c
 - les informations de liste et de detail restent coherentes apres mise a jour
 - la vue doit mettre en avant les sessions actives et les clients encore credites en temps restant
 - les erreurs de consultation sont affichees dans l'ecran
+- la colonne de detail a droite reste compacte et alignee en haut
+- les encarts financiers du haut refletent la liste globale affichee et non seulement le detail selectionne
 
 ## Criteres d'acceptation
 
@@ -98,3 +106,5 @@ Afficher une vue operationnelle de la journee avec les clients en cours et les c
 - le personnel peut distinguer rapidement les abonnes et non abonnes
 - l'acces au detail du jour d'un client est possible
 - la navigation liste vers detail est utilisable sans changer de page applicative
+- les montants consolides du jour sont visibles en haut de page
+- les details de monitoring sont approfondis dans `F-014-operational-monitoring-financial-summary.md`

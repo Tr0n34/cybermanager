@@ -34,6 +34,7 @@ Permettre la creation, la consultation et le reglement des dettes ouvertes d'un 
 - les dettes ouvertes doivent etre visibles en rouge dans les ecrans operatoires
 - un client peut posseder plusieurs dettes ouvertes
 - le reglement d'une dette ne doit pas supprimer son historique
+- l'affichage operationnel d'une dette doit rester compact et presenter date / heure au format `JJ/MM/AAAA HH:mm`
 
 ## Backend
 
@@ -82,6 +83,7 @@ Permettre la creation, la consultation et le reglement des dettes ouvertes d'un 
 - ecran `Dettes`
 - detail client dans l'ecran clients
 - detail developpable d'une session en cours
+- detail developpable d'une session du jour
 
 ### Composants
 - debts-page
@@ -93,9 +95,11 @@ Permettre la creation, la consultation et le reglement des dettes ouvertes d'un 
 - le menu principal expose une entree `Dettes`
 - l'ecran `Dettes` affiche les clients ayant des dettes ouvertes et le sous-detail de chaque dette
 - chaque dette peut etre marquee comme reglee depuis l'ecran `Dettes`
-- dans l'ecran `Sessions`, le detail d'une session affiche les dettes du client en rouge
+- dans l'ecran `Sessions`, le detail d'une session affiche les dettes du client dans la chronologie compacte des achats du jour
 - dans l'ecran `Clients`, l'ouverture du detail affiche les dettes du client en rouge
 - les formulaires de vente permettent de cocher la creation d'une dette au lieu d'un encaissement immediat
+- dans les resumes de detail `Clients` et `Sessions`, la presence d'une dette est signalee par une icone rouge de billets non payes
+- lorsqu'une dette correspond a une vente du jour, l'interface privilegie une ligne unique de type `Produit 12/03/2026 14:12 1.50 EUR` plutot qu'un libelle technique `Vente produits du ...`
 - les erreurs de chargement ou de reglement restent visibles dans l'ecran
 
 ## Criteres d'acceptation

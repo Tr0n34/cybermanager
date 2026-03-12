@@ -29,7 +29,12 @@ public class CafeSessionRepositoryAdapter implements CafeSessionRepository {
         entity.workstation = session.workstation();
         entity.startedAt = session.startedAt();
         entity.endedAt = session.endedAt();
-        entity.consumedMinutes = session.consumedMinutes();
+        entity.pausedAt = session.pausedAt();
+        entity.paid = session.paid();
+        entity.pausedSeconds = session.pausedSeconds();
+        entity.pausedMinutes = session.pausedSeconds() / 60;
+        entity.consumedSeconds = session.consumedSeconds();
+        entity.consumedMinutes = (session.consumedSeconds() + 59) / 60;
         entity.calculatedPrice = session.calculatedPrice().amount();
         return toDomain(repository.save(entity));
     }
@@ -50,7 +55,22 @@ public class CafeSessionRepositoryAdapter implements CafeSessionRepository {
     }
 
     private CafeSession toDomain(CafeSessionJpaEntity entity) {
-        return new CafeSession(new SessionId(entity.id), new CustomerId(entity.customerId), entity.workstation, entity.startedAt, entity.endedAt, entity.consumedMinutes, new Money(entity.calculatedPrice == null ? java.math.BigDecimal.ZERO : entity.calculatedPrice));
+        int pausedMinutes = entity.pausedMinutes == null ? 0 : entity.pausedMinutes;
+        int consumedMinutes = entity.consumedMinutes == null ? 0 : entity.consumedMinutes;
+        int pausedSeconds = entity.pausedSeconds != null && entity.pausedSeconds > 0 ? entity.pausedSeconds : pausedMinutes * 60;
+        int consumedSeconds = entity.consumedSeconds != null && entity.consumedSeconds > 0 ? entity.consumedSeconds : consumedMinutes * 60;
+        return new CafeSession(
+                new SessionId(entity.id),
+                new CustomerId(entity.customerId),
+                entity.workstation,
+                entity.startedAt,
+                entity.endedAt,
+                entity.pausedAt,
+                Boolean.TRUE.equals(entity.paid),
+                pausedSeconds,
+                consumedSeconds,
+                new Money(entity.calculatedPrice == null ? java.math.BigDecimal.ZERO : entity.calculatedPrice)
+        );
     }
 }
 

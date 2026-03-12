@@ -18,12 +18,12 @@ public class ReportingApplicationService {
         this.queryAdapter = queryAdapter;
     }
 
-    public DayHistoryView dayHistory(LocalDate date) {
-        return queryAdapter.getDayHistory(date);
+    public DayHistoryView dayHistory(LocalDate startDate, LocalDate endDate) {
+        return queryAdapter.getDayHistory(startDate, endDate);
     }
 
-    public CustomerDayHistoryView customerHistory(LocalDate date, UUID customerId) {
-        return queryAdapter.getCustomerDayHistory(date, customerId);
+    public CustomerDayHistoryView customerHistory(LocalDate startDate, LocalDate endDate, UUID customerId) {
+        return queryAdapter.getCustomerDayHistory(startDate, endDate, customerId);
     }
 }
 

@@ -3,7 +3,10 @@ package com.cybermanager.api.controllers.session;
 import com.cybermanager.api.dtos.session.SessionDtos.CurrentSessionsResponse;
 import com.cybermanager.api.dtos.session.SessionDtos.SessionResponse;
 import com.cybermanager.api.dtos.session.SessionDtos.StartSessionRequest;
+import com.cybermanager.api.dtos.session.SessionDtos.StopSessionRequest;
 import com.cybermanager.application.commands.session.StartSessionCommand;
+import com.cybermanager.application.commands.session.PauseSessionCommand;
+import com.cybermanager.application.commands.session.ResumeSessionCommand;
 import com.cybermanager.application.commands.session.StopSessionCommand;
 import com.cybermanager.application.queries.session.SearchSessionsOfDayQuery;
 import com.cybermanager.application.services.session.SessionApplicationService;
@@ -41,8 +44,18 @@ public class SessionController {
     }
 
     @PostMapping("/{id}/stop")
-    public ResponseEntity<SessionResponse> stop(@PathVariable("id") UUID id) {
-        return ResponseEntity.ok(toResponse(service.execute(new StopSessionCommand(id))));
+    public ResponseEntity<SessionResponse> stop(@PathVariable("id") UUID id, @RequestBody(required = false) StopSessionRequest request) {
+        return ResponseEntity.ok(toResponse(service.execute(new StopSessionCommand(id, request != null && request.paid()))));
+    }
+
+    @PostMapping("/{id}/pause")
+    public ResponseEntity<SessionResponse> pause(@PathVariable("id") UUID id) {
+        return ResponseEntity.ok(toResponse(service.execute(new PauseSessionCommand(id))));
+    }
+
+    @PostMapping("/{id}/resume")
+    public ResponseEntity<SessionResponse> resume(@PathVariable("id") UUID id) {
+        return ResponseEntity.ok(toResponse(service.execute(new ResumeSessionCommand(id))));
     }
 
     private SessionResponse toResponse(SessionView view) {
@@ -55,8 +68,15 @@ public class SessionController {
                 view.workstation(),
                 view.startedAt(),
                 view.endedAt(),
+                view.paused(),
+                view.paid(),
+                view.consumedSeconds(),
                 view.consumedMinutes(),
-                view.calculatedPrice()
+                view.calculatedPrice(),
+                view.purchasesAmount(),
+                view.openDebtAmount(),
+                view.totalAmountDue(),
+                view.totalPaidAmount()
         );
     }
 }

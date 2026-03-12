@@ -37,5 +37,10 @@ public record Customer(
         return new Customer(id, name, type, status, Math.max(0, remainingMinutes - consumedMinutes));
     }
 
+    public Customer addSubscriptionMinutes(int creditedMinutes) {
+        int nextMinutes = remainingMinutes + Math.max(0, creditedMinutes);
+        return new Customer(id, name, CustomerType.SUBSCRIBER, status, nextMinutes);
+    }
+
 }
 

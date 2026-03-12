@@ -8,7 +8,18 @@ public final class MonitoringDtos {
     private MonitoringDtos() {
     }
 
-    public record DayCustomerResponse(UUID customerId, String name, String type, int remainingMinutes, int consumedMinutes, BigDecimal purchasesTotal, boolean activeSession) {}
-    public record DayCustomerActivityResponse(UUID customerId, String name, List<String> sales, List<String> sessions) {}
+    public record DayCustomerResponse(
+            UUID customerId,
+            String name,
+            String type,
+            int remainingMinutes,
+            int consumedMinutes,
+            BigDecimal purchasesTotal,
+            BigDecimal debtTotal,
+            BigDecimal collectedTotal,
+            String state
+    ) {}
+    public record SaleActivityResponse(String label, int quantity, BigDecimal totalPrice) {}
+    public record DayCustomerActivityResponse(UUID customerId, String name, List<SaleActivityResponse> sales, List<String> sessions, BigDecimal totalCollected, BigDecimal totalDebtCreated) {}
 }
 

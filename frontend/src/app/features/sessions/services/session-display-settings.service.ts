@@ -15,9 +15,14 @@ const DEFAULT_SETTINGS: SessionDisplaySettings = {
 export class SessionDisplaySettingsService {
   readonly settings = signal<SessionDisplaySettings>(this.read());
 
-  update(settings: SessionDisplaySettings): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    this.settings.set(settings);
+  update(settings: SessionDisplaySettings): SessionDisplaySettings {
+    const normalized = {
+      currentPageSize: this.normalize(settings.currentPageSize, DEFAULT_SETTINGS.currentPageSize),
+      dayPageSize: this.normalize(settings.dayPageSize, DEFAULT_SETTINGS.dayPageSize),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    this.settings.set(normalized);
+    return normalized;
   }
 
   private read(): SessionDisplaySettings {
@@ -36,10 +41,11 @@ export class SessionDisplaySettingsService {
     }
   }
 
-  private normalize(value: number | undefined, fallback: number): number {
-    if (!value || Number.isNaN(value) || value < 1) {
+  private normalize(value: number | string | undefined, fallback: number): number {
+    const numericValue = typeof value === 'string' ? Number(value) : value;
+    if (!numericValue || Number.isNaN(numericValue) || numericValue < 1) {
       return fallback;
     }
-    return Math.floor(value);
+    return Math.floor(numericValue);
   }
 }

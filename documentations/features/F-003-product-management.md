@@ -85,6 +85,7 @@ Permettre la creation, la consultation, la modification, l'activation et la desa
 - `GET /api/products` accepte `term`, `status` et `category`
 - les lectures sont accessibles sans header d'authentification dans l'etat actuel
 - les operations d'ecriture exigent un bearer token et retournent le produit mis a jour
+- les erreurs metier exposees par les routes d'ecriture suivent un contrat stable exploitable par le frontend
 
 ## Frontend
 
@@ -105,12 +106,14 @@ Permettre la creation, la consultation, la modification, l'activation et la desa
 - la liste se charge a l'ouverture de l'ecran
 - les filtres nom, categorie et statut filtrent la liste immediatement a chaque saisie
 - la taille de page est configurable et la pagination reste dans l'ecran
+- le tableau catalogue reste compact avec badges de statut visuellement plus lisibles
 - le bouton "nouveau produit" ouvre un panneau de droite vide avec animation puis disparait tant que le panneau reste ouvert
 - le clic sur une ligne ou une action d'edition ouvre le panneau en mode modification
 - apres creation, modification, activation, desactivation ou suppression, la liste est rechargee et le panneau peut se refermer
 - les erreurs de chargement ou de sauvegarde sont visibles dans l'ecran
 - la page combine le tableau catalogue et le formulaire produit dans le meme flux utilisateur
 - le badge de statut actif / inactif doit rester visuellement distinct et lisible
+- les dates et heures visibles dans l'ecran suivent le format `JJ/MM/AAAA HH:mm`
 
 ## Criteres d'acceptation
 

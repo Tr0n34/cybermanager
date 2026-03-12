@@ -39,6 +39,7 @@ Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de
 - la grille tarifaire est la source de verite pour la vente de temps
 - la meme grille tarifaire est la source de verite pour la facturation d'une session journaliere
 - la facturation doit reutiliser les plages configurees au moment du calcul
+- lorsqu'une session est arretee, le montant affiche dans `Sessions du jour` doit additionner le cout du temps de connexion et les achats produits du jour du client
 
 ## Backend
 
@@ -61,6 +62,7 @@ Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de
 - ConnectionPricingView
 - SalesApplicationService
 - SessionApplicationService
+- SessionView
 
 ### Infrastructure
 
@@ -75,6 +77,7 @@ Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de
 ### Contrats API attendus
 - `GET /api/pricing/connection-time` retourne une collection de paliers ordonnee avec `hours`, `minutes`, `durationMinutes` et `price`
 - `PUT /api/pricing/connection-time` remplace la grille active complete a partir d'une collection de paliers
+- les vues session exposees par `/api/sessions/current` et `/api/sessions/day` retournent aussi `calculatedPrice` pour le temps et `totalAmountDue` pour la somme `temps + achats produits du jour`
 
 ## Frontend
 
@@ -100,6 +103,8 @@ Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de
 - l'utilisateur peut enregistrer l'ensemble de la grille en une action
 - la page affiche aussi le total en minutes de chaque palier pour faciliter le controle
 - les messages de succes et d'erreur sont affiches dans l'ecran
+- dans l'ecran `Sessions`, la colonne `A payer` apparait entre `Credit` et `Debut`
+- lorsqu'une session en cours est arretee, elle passe dans `Sessions du jour` avec le total calcule a partir du temps de connexion et des achats produits
 
 ## Criteres d'acceptation
 
@@ -110,3 +115,4 @@ Permettre la gestion d'une grille de tarifs de connexion basee sur des plages de
 - l'arret d'une session journaliere utilise la meme grille configuree
 - l'ecran ventes affiche la grille active et renvoie vers l'ecran dedie de configuration
 - la lecture de la grille active est possible sans modification
+- l'ecran sessions affiche le total `temps + achats produits` apres arret d'une session

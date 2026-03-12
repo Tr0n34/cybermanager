@@ -6,6 +6,13 @@ export interface CafeSession {
   remainingMinutes: number;
   startedAt: string;
   endedAt: string | null;
+  paused: boolean;
+  paid: boolean;
+  consumedSeconds: number;
   consumedMinutes: number;
   calculatedPrice: number;
+  purchasesAmount: number;
+  openDebtAmount: number;
+  totalAmountDue: number;
+  totalPaidAmount: number;
 }

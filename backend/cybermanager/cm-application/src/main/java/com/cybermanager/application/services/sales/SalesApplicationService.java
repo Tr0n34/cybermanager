@@ -27,12 +27,14 @@ import com.cybermanager.application.views.sales.ConnectionPricingView;
 import com.cybermanager.application.views.sales.SaleLineView;
 import com.cybermanager.application.views.sales.SaleView;
 import com.cybermanager.domain.model.catalog.ProductId;
+import com.cybermanager.domain.model.customer.Customer;
 import com.cybermanager.domain.model.customer.CustomerId;
 import com.cybermanager.domain.model.customer.DebtRecord;
 import com.cybermanager.domain.model.sales.ConnectionPricingTier;
 import com.cybermanager.domain.model.shared.Money;
 import com.cybermanager.domain.model.subscription.SubscriptionOfferId;
 import com.cybermanager.domain.port.catalog.ProductRepository;
+import com.cybermanager.domain.port.customer.CustomerRepository;
 import com.cybermanager.domain.port.customer.DebtRepository;
 import com.cybermanager.domain.port.subscription.SubscriptionOfferRepository;
 import org.springframework.stereotype.Service;
@@ -56,13 +58,15 @@ public class SalesApplicationService implements
     private final ConnectionPricingRepository pricingRepository;
     private final ProductRepository productRepository;
     private final SubscriptionOfferRepository subscriptionOfferRepository;
+    private final CustomerRepository customerRepository;
     private final DebtRepository debtRepository;
 
-    public SalesApplicationService(SaleRepository saleRepository, ConnectionPricingRepository pricingRepository, ProductRepository productRepository, SubscriptionOfferRepository subscriptionOfferRepository, DebtRepository debtRepository) {
+    public SalesApplicationService(SaleRepository saleRepository, ConnectionPricingRepository pricingRepository, ProductRepository productRepository, SubscriptionOfferRepository subscriptionOfferRepository, CustomerRepository customerRepository, DebtRepository debtRepository) {
         this.saleRepository = saleRepository;
         this.pricingRepository = pricingRepository;
         this.productRepository = productRepository;
         this.subscriptionOfferRepository = subscriptionOfferRepository;
+        this.customerRepository = customerRepository;
         this.debtRepository = debtRepository;
     }
 
@@ -81,6 +85,9 @@ public class SalesApplicationService implements
     public SaleView execute(CreateSubscriptionSaleCommand command) {
         var offer = subscriptionOfferRepository.findById(new SubscriptionOfferId(command.subscriptionOfferId()))
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SUBSCRIPTION_OFFER_NOT_FOUND", "Subscription offer not found"));
+        Customer customer = customerRepository.findById(new CustomerId(command.customerId()))
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
+        customerRepository.save(customer.addSubscriptionMinutes(offer.includedMinutes()));
         var lines = List.of(new SaleLine(offer.name(), 1, offer.price(), offer.price()));
         var sale = saleRepository.save(Sale.create(new CustomerId(command.customerId()), SaleType.SUBSCRIPTION, LocalDateTime.now(), lines, offer.price()));
         createDebtIfRequested(command.customerId(), command.createDebt(), "Vente abonnement du " + DateTimeLabelFormatter.format(sale.soldAt()), offer.price());

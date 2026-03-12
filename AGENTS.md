@@ -2,7 +2,7 @@
 
 ## Contexte projet
 
-CyberManager est une application fullstack de gestion d'un cyber café
+CyberManager est une application fullstack de gestion d'un cyber cafe.
 
 Stack cible :
 - Backend : Java 21 / Spring Boot
@@ -11,42 +11,40 @@ Stack cible :
 - Frontend : Angular
 - API : REST JSON
 - Mapping : MapStruct
-- Base de données : PostgreSQL
+- Base de donnees : PostgreSQL
 - Tests : JUnit / Mockito / Spring Boot Test / Angular unit tests
 
 ## Objectifs
 
 L'application permet de :
-- gérer les utilisateurs et leurs rôles
-
+- gerer les utilisateurs et leurs roles
+- gerer les produits, abonnements, clients et sessions
+- suivre les ventes, dettes, vues de monitoring et historique
 
 ## Architecture backend attendue
 
-Le backend est organisé selon les standards DDD : domain, application, infrastructure et api.
-
-Les bounded context (c'est à dire les "objets métier" sont dans le domain)
+Le backend est organise selon les standards DDD : `domain`, `application`, `infrastructure`, `api`.
 
 Exemple :
 
 backend/
-├── cybermanager-parent
-├── auth
-│   ├── auth-domain
-│   ├── auth-application
-│   ├── auth-infrastructure
-│   └── auth-api
-├── cybermanager
-│   ├── cybermanager-domain
-│   ├── cybermanager-application
-│   ├── cybermanager-infrastructure
-│   └── cybermanager-api
+|- cybermanager-parent
+|- auth
+|  |- auth-domain
+|  |- auth-application
+|  |- auth-infrastructure
+|  `- auth-api
+`- cybermanager
+   |- cybermanager-domain
+   |- cybermanager-application
+   |- cybermanager-infrastructure
+   `- cybermanager-api
 
-
-## Règles DDD backend
+## Regles DDD backend
 
 ### Convention de packaging backend
 
-Le packaging Java doit être organisé d'abord par couche technique, puis par bounded context à l'intérieur de cette couche.
+Le packaging Java doit etre organise d'abord par couche technique, puis par bounded context a l'interieur de cette couche.
 
 Exemples attendus :
 - `com.cybermanager.domain.model.users`
@@ -64,69 +62,72 @@ Exemples attendus :
 - `com.cybermanager.infrastructure.repositories.persistence.users`
 - `com.cybermanager.infrastructure.security.users`
 
-Règles :
-- ne pas mettre le bounded context à la racine du package avant la couche
-- le bounded context doit apparaître à l'intérieur du package de couche
-- appliquer la même logique dans `auth`, avec le préfixe module si nécessaire, par exemple `com.cybermanager.auth.application.services`
+Regles :
+- ne pas mettre le bounded context a la racine du package avant la couche
+- le bounded context doit apparaitre a l'interieur du package de couche
+- appliquer la meme logique dans `auth`, par exemple `com.cybermanager.auth.application.services`
 
 ### Domain
+
 Contient exclusivement :
-- entités métier
+- entites metier
 - value objects
-- agrégats
-- port entrant et sortant de domaine
-- événements de domaine
-- interfaces de repository (port sortant)
+- agregats
+- ports entrants et sortants du domaine
+- evenements de domaine
+- interfaces de repository
 
 Contraintes :
-- aucune dépendance Spring
+- aucune dependance Spring
 - aucune annotation JPA
 - aucune logique technique
 - aucune exposition HTTP
 - package racine attendu : `com.cybermanager.domain.*` ou `com.cybermanager.auth.domain.*`
 
 ### Application
+
 Contient :
 - use cases
 - services applicatifs
-- Read models applicatifs (VIEW)
-- ports d’entrée / sortie
-- orchestrations métier
+- read models applicatifs
+- orchestrations metier
 
 Contraintes :
-- ne contient pas de logique d’infrastructure
-- dépend du domain, jamais de l’APIs
-- ne contient que des annotations springs : @Transactional, @Qualifier, @Service
-- Les usecase prennent en entrée une Query/Command et en sortie une View
-- Les usecase ont une méthode execute (pattern command
+- ne contient pas de logique d'infrastructure
+- depend du domain, jamais de l'API
+- annotations autorisees : `@Transactional`, `@Qualifier`, `@Service`
+- les use cases prennent en entree une `Query` ou une `Command` et retournent une `View`
+- les use cases exposent une methode `execute`
 - package racine attendu : `com.cybermanager.application.*` ou `com.cybermanager.auth.application.*`
 
 ### Infrastructure
+
 Contient :
-- entités JPA
+- entites JPA
 - repositories Spring Data
-- implémentations d’adapters
+- adapters
 - clients externes
 - persistance
 - configuration technique
 
 Contraintes :
-- peut dépendre de application et domain
-- ne doit pas contenir la logique métier centrale
-- pas d'appel direct des JpaRepository passage par un adapter obligatoire
+- peut dependre de `application` et `domain`
+- ne doit pas contenir la logique metier centrale
+- pas d'appel direct aux `JpaRepository` hors adapter
 - package racine attendu : `com.cybermanager.infrastructure.*` ou `com.cybermanager.auth.infrastructure.*`
 
 ### API
+
 Contient :
-- controllers REST (dans in)
-- request / response DTO (dans in/dto ou out/dto)
-- mappers API (dans in/mappers)
+- controllers REST
+- request / response DTO
+- mappers API
 - gestion des erreurs HTTP
 
 Contraintes :
-- un controller ne retourne jamais d’entité domain ou d’entité JPA
+- un controller ne retourne jamais d'entite domain ou JPA
 - un controller appelle les use cases / services applicatifs
-- pas d’accès direct aux repositories depuis les controllers
+- pas d'acces direct aux repositories depuis les controllers
 - package racine attendu : `com.cybermanager.api.*` ou `com.cybermanager.auth.api.*`
 
 ## Architecture frontend attendue
@@ -134,112 +135,117 @@ Contraintes :
 Organisation Angular par feature.
 
 frontend/src/app/
-├── core/
-├── shared/
-├── layout/
-└── features/
-├── auth/
-├── dashboard/
-├── users/
-└── reporting/
+|- core/
+|- shared/
+|- layout/
+`- features/
+   |- auth/
+   |- dashboard/
+   |- users/
+   `- reporting/
 
 ### core
-Contient :
-e
+
+Contient les services transverses, gardes, interceptors et infrastructure Angular commune.
 
 ### shared
+
 Contient :
-- composants réutilisables
+- composants reutilisables
 - pipes
 - directives
-- modèles partagés
+- modeles partages
 
 ### features
-Chaque feature contient :
-- pages
-- components
-- services
-- models
-- routes si nécessaire
-- state local si nécessaire
 
-### Bounded Context
+Chaque feature contient :
+- `pages`
+- `components`
+- `services`
+- `models`
+- `routes` si necessaire
+- etat local si necessaire
 
 ## Bounded contexts
 
 ### auth
-Authentification et récupération de l’utilisateur courant.
+Authentification et recuperation de l'utilisateur courant.
 
 ### users
-Gestion des employés, administrateurs et rôles applicatifs.
+Gestion des employes, administrateurs et roles applicatifs.
 
 ### product
-Catalogue des produits vendus au cybercafé.
+Catalogue des produits vendus au cybercafe.
 
 ### subscription
-Offres d’abonnement et crédit de temps associé.
+Offres d'abonnement et credit de temps associe.
 
 ### customer
-Gestion des clients occasionnels et abonnés.
+Gestion des clients occasionnels et abonnes.
 
 ### sales
-Vente de produits, d’abonnements et de temps de connexion.
+Vente de produits, d'abonnements et de temps de connexion.
 
 ### session
 Gestion des sessions de connexion sur les postes.
 
 ### monitoring
-Vue opérationnelle de la journée, agrégée et lisible.
+Vue operationnelle de la journee, agregee et lisible.
 
 ### reporting
-Historique journalier et consultation des journées passées.
+Historique journalier et consultation des journees passees.
 
-## Règles frontend
+## Regles frontend
 
 - architecture par feature
-- composants simples et fortement typés
-- services Angular dédiés aux appels API
-- pas de logique métier lourde dans les composants
+- composants simples et fortement types
+- services Angular dedies aux appels API
+- pas de logique metier lourde dans les composants
 - typage strict TypeScript
-- toujours isoler les modèles d’entrée/sortie
+- toujours isoler les modeles d'entree/sortie
+- pour les formulaires reactifs, ne pas attendre de reactivite d'un `computed` base directement sur `form.getRawValue()`
+- preferer `signals`, `valueChanges` ou un state local explicite pour les filtres instantanes
+- toute page de configuration doit normaliser les valeurs avant sauvegarde et rendre visible la confirmation d'enregistrement
 
 ## Workflow attendu pour Codex
 
-Pour toute nouvelle fonctionnalité :
+Pour toute nouvelle fonctionnalite :
 
-1. lire la feature dans documentations/features
-2. identifier le bounded context impacté
-3. implémenter le domain
-4. implémenter l’application
-5. implémenter l’infrastructure
-6. implémenter l’API
-7. implémenter le frontend Angular de la feature
-8. écrire ou compléter les tests
-9. vérifier le respect DDD
-10. résumer les fichiers modifiés
+1. lire la feature dans `documentations/features`
+2. identifier le bounded context impacte
+3. implementer le domain
+4. implementer l'application
+5. implementer l'infrastructure
+6. implementer l'API
+7. implementer le frontend Angular de la feature
+8. ecrire ou completer les tests
+9. verifier le respect DDD
+10. mettre a jour la documentation de feature si le comportement livre a evolue
+11. resumer les fichiers modifies
 
-## Règles de livraison
+## Regles de livraison
 
-Une tâche est terminée si :
+Une tache est terminee si :
 - le code compile
 - les tests pertinents passent
-- les couches DDD sont respectées
-- aucun controller n’expose d’entité
-- le frontend consomme correctement l’API
-- un résumé clair des changements est fourni
+- les couches DDD sont respectees
+- aucun controller n'expose d'entite
+- le frontend consomme correctement l'API
+- la documentation fonctionnelle est a jour quand le comportement utilisateur change
+- un resume clair des changements est fourni
 
 ## Interdictions
 
-- ne pas retourner d’Entity JPA dans les endpoints
+- ne pas retourner d'entity JPA dans les endpoints
 - ne pas injecter de repository dans un controller
-- ne pas mettre de logique métier complexe dans les adapters
-- ne pas mélanger DTO API, DTO applicatifs et objets domain
-- ne pas créer de dépendance circulaire entre modules
+- ne pas mettre de logique metier complexe dans les adapters
+- ne pas melanger DTO API, DTO applicatifs et objets domain
+- ne pas creer de dependance circulaire entre modules
 
-## Convention de réponse de l’agent
+## Convention de reponse de l'agent
 
-Quand une implémentation est proposée, toujours fournir :
-- les modules concernés
-- les fichiers créés / modifiés
-- les choix d’architecture
+Quand une implementation est proposee, toujours fournir :
+- les modules concernes
+- les fichiers crees / modifies
+- les choix d'architecture
 - les points de vigilance

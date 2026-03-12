@@ -7,6 +7,7 @@ import com.cybermanager.domain.model.sales.ConnectionPricingTier;
 import com.cybermanager.domain.model.sales.Sale;
 import com.cybermanager.domain.model.shared.Money;
 import com.cybermanager.domain.port.catalog.ProductRepository;
+import com.cybermanager.domain.port.customer.CustomerRepository;
 import com.cybermanager.domain.port.customer.DebtRepository;
 import com.cybermanager.domain.port.sales.ConnectionPricingRepository;
 import com.cybermanager.domain.port.sales.SaleRepository;
@@ -30,8 +31,9 @@ class SalesApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         ProductRepository productRepository = mock(ProductRepository.class);
         SubscriptionOfferRepository offerRepository = mock(SubscriptionOfferRepository.class);
+        CustomerRepository customerRepository = mock(CustomerRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
-        SalesApplicationService service = new SalesApplicationService(saleRepository, pricingRepository, productRepository, offerRepository, debtRepository);
+        SalesApplicationService service = new SalesApplicationService(saleRepository, pricingRepository, productRepository, offerRepository, customerRepository, debtRepository);
 
         ConnectionPricingRule rule = new ConnectionPricingRule(List.of(
                 new ConnectionPricingTier(30, Money.of("1.50")),
@@ -52,8 +54,9 @@ class SalesApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         ProductRepository productRepository = mock(ProductRepository.class);
         SubscriptionOfferRepository offerRepository = mock(SubscriptionOfferRepository.class);
+        CustomerRepository customerRepository = mock(CustomerRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
-        SalesApplicationService service = new SalesApplicationService(saleRepository, pricingRepository, productRepository, offerRepository, debtRepository);
+        SalesApplicationService service = new SalesApplicationService(saleRepository, pricingRepository, productRepository, offerRepository, customerRepository, debtRepository);
 
         when(pricingRepository.save(any(ConnectionPricingRule.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

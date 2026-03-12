@@ -31,4 +31,12 @@ export class CustomersApiService {
   convert(id: string, payload: { subscriptionOfferId: string; deductCurrentSession: boolean }) {
     return this.http.post(`${this.baseUrl}/${id}/convert-to-subscriber`, payload);
   }
+
+  settleDebt(debtId: string) {
+    return this.http.post(`${this.baseUrl}/debts/${debtId}/settle`, {});
+  }
+
+  createDebtFromSale(saleId: string) {
+    return this.http.post(`${this.baseUrl}/sales/${saleId}/create-debt`, {});
+  }
 }

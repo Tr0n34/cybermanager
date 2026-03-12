@@ -17,7 +17,12 @@ public class CafeSessionJpaEntity {
     public String workstation;
     public LocalDateTime startedAt;
     public LocalDateTime endedAt;
-    public int consumedMinutes;
+    public LocalDateTime pausedAt;
+    public Boolean paid;
+    public Integer pausedMinutes;
+    public Integer pausedSeconds;
+    public Integer consumedMinutes;
+    public Integer consumedSeconds;
     public BigDecimal calculatedPrice;
 }
 

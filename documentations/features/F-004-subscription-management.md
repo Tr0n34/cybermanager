@@ -85,6 +85,7 @@ Permettre de definir des offres d'abonnement avec un prix et une duree de connex
 - `GET /api/subscription-offers` accepte `term` et `status`
 - les DTO d'entree et de sortie exposent `name`, `price`, `includedMinutes` et `status`
 - les routes d'ecriture exigent un bearer token et restituent l'offre courante apres traitement
+- les erreurs metier exposees par les routes d'ecriture suivent un contrat stable exploitable par le frontend
 
 ## Frontend
 
@@ -105,6 +106,7 @@ Permettre de definir des offres d'abonnement avec un prix et une duree de connex
 - la liste des offres se charge a l'ouverture
 - le filtrage par libelle et statut est immediat et client side
 - la taille de page est configurable et la pagination garde le meme flux utilisateur
+- le tableau reste compact pour afficher davantage d'offres dans une hauteur reduite
 - le bouton de creation ouvre un panneau de droite vide avec animation puis disparait tant que le panneau est ouvert
 - l'edition d'une offre recharge le formulaire avec les donnees courantes dans ce meme panneau
 - apres sauvegarde, changement de statut ou suppression, la liste est rechargee

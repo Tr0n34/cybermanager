@@ -108,6 +108,7 @@ Permettre l'administration du referentiel des utilisateurs et de leurs roles.
 - la liste se charge a l'ouverture de l'ecran
 - la recherche par nom, role et statut filtre la liste immediatement a chaque saisie
 - la taille de page est configurable depuis l'ecran et la pagination reste sur la meme page
+- le tableau reste dense et compact pour afficher davantage d'utilisateurs sans allonger inutilement la page
 - la selection d'un utilisateur ouvre le panneau de droite en mode edition
 - l'action "nouvel utilisateur" ouvre le panneau de droite avec transition, masque le bouton de creation et reinitialise le formulaire
 - une creation, une modification ou une suppression recharge la liste et referme le panneau

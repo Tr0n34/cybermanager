@@ -12,7 +12,7 @@ public final class CustomerDtos {
     public record CustomerRequest(String name, String type, UUID subscriptionOfferId) {}
     public record ConvertToSubscriberRequest(UUID subscriptionOfferId, boolean deductCurrentSession) {}
     public record CustomerResponse(UUID customerId, String name, String type, String status, int remainingMinutes, BigDecimal openDebtAmount) {}
-    public record CustomerPurchaseResponse(UUID saleId, String type, String label, LocalDateTime soldAt, BigDecimal totalAmount) {}
+    public record CustomerPurchaseResponse(UUID saleId, String type, String label, LocalDateTime soldAt, BigDecimal totalAmount, boolean openDebt) {}
     public record CustomerDebtResponse(UUID debtId, String label, BigDecimal amount, String status, LocalDateTime createdAt, LocalDateTime settledAt) {}
     public record CustomerDetailsResponse(
             UUID customerId,

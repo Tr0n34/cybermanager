@@ -13,7 +13,10 @@ public record CafeSession(
         String workstation,
         LocalDateTime startedAt,
         LocalDateTime endedAt,
-        int consumedMinutes,
+        LocalDateTime pausedAt,
+        boolean paid,
+        int pausedSeconds,
+        int consumedSeconds,
         Money calculatedPrice
 ) {
     public CafeSession {
@@ -23,22 +26,63 @@ public record CafeSession(
             throw new IllegalArgumentException("Workstation is required");
         }
         Objects.requireNonNull(startedAt, "startedAt is required");
-        if (consumedMinutes < 0) {
-            throw new IllegalArgumentException("Consumed minutes cannot be negative");
+        if (pausedSeconds < 0) {
+            throw new IllegalArgumentException("Paused seconds cannot be negative");
+        }
+        if (consumedSeconds < 0) {
+            throw new IllegalArgumentException("Consumed seconds cannot be negative");
         }
     }
 
     public static CafeSession start(CustomerId customerId, String workstation, LocalDateTime startedAt) {
-        return new CafeSession(SessionId.newId(), customerId, workstation, startedAt, null, 0, Money.of("0"));
+        return new CafeSession(SessionId.newId(), customerId, workstation, startedAt, null, null, false, 0, 0, Money.of("0"));
     }
 
-    public CafeSession stop(LocalDateTime endedAt, Money calculatedPrice) {
-        int minutes = (int) Math.max(1, Duration.between(startedAt, endedAt).toMinutes());
-        return new CafeSession(id, customerId, workstation, startedAt, endedAt, minutes, calculatedPrice);
+    public CafeSession pause(LocalDateTime pausedAt) {
+        if (!active()) {
+            throw new IllegalStateException("Cannot pause an ended session");
+        }
+        if (paused()) {
+            throw new IllegalStateException("Session is already paused");
+        }
+        return new CafeSession(id, customerId, workstation, startedAt, endedAt, pausedAt, paid, pausedSeconds, consumedSeconds, calculatedPrice);
+    }
+
+    public CafeSession resume(LocalDateTime resumedAt) {
+        if (!paused()) {
+            throw new IllegalStateException("Session is not paused");
+        }
+        int additionalPausedSeconds = (int) Math.max(0, Duration.between(pausedAt, resumedAt).getSeconds());
+        return new CafeSession(id, customerId, workstation, startedAt, endedAt, null, paid, pausedSeconds + additionalPausedSeconds, consumedSeconds, calculatedPrice);
+    }
+
+    public CafeSession stop(LocalDateTime endedAt, Money calculatedPrice, boolean paid) {
+        return new CafeSession(id, customerId, workstation, startedAt, endedAt, null, paid, pausedSecondsUntil(endedAt), consumedSecondsUntil(endedAt), calculatedPrice);
     }
 
     public boolean active() {
         return endedAt == null;
+    }
+
+    public boolean paused() {
+        return pausedAt != null && active();
+    }
+
+    public int consumedSecondsUntil(LocalDateTime referenceTime) {
+        long totalSeconds = Math.max(0, Duration.between(startedAt, referenceTime).getSeconds());
+        return (int) Math.max(0, totalSeconds - pausedSecondsUntil(referenceTime));
+    }
+
+    public int consumedMinutesUntil(LocalDateTime referenceTime) {
+        long effectiveSeconds = Math.max(0, consumedSecondsUntil(referenceTime));
+        return (int) Math.max(1, (effectiveSeconds + 59) / 60);
+    }
+
+    private int pausedSecondsUntil(LocalDateTime referenceTime) {
+        if (!paused()) {
+            return pausedSeconds;
+        }
+        return pausedSeconds + (int) Math.max(0, Duration.between(pausedAt, referenceTime).getSeconds());
     }
 }
 

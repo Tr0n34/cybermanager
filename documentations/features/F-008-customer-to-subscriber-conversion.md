@@ -81,6 +81,7 @@ Transformer un client journalier en abonne depuis sa session active et pouvoir d
 - apres conversion, la session recharge les informations client avec le nouveau type
 - le client converti apparait ensuite dans l'ecran client avec son abonnement en cours
 - le client converti apparait ensuite dans l'ecran client avec son abonnement en cours, ses achats et ses dettes ouvertes eventuelles
+- les ecrans de conversion et de consultation rappellent que les abonnements se cumulent
 - les erreurs de conversion restent visibles dans l'ecran
 
 ## Criteres d'acceptation

@@ -1,6 +1,8 @@
 package com.cybermanager.application.services.session;
 
 import com.cybermanager.application.commands.session.StartSessionCommand;
+import com.cybermanager.application.commands.session.PauseSessionCommand;
+import com.cybermanager.application.commands.session.ResumeSessionCommand;
 import com.cybermanager.application.commands.session.StopSessionCommand;
 import com.cybermanager.application.services.shared.BusinessException;
 import com.cybermanager.domain.model.customer.Customer;
@@ -15,6 +17,7 @@ import com.cybermanager.domain.model.shared.Money;
 import com.cybermanager.domain.port.customer.CustomerRepository;
 import com.cybermanager.domain.port.customer.DebtRepository;
 import com.cybermanager.domain.port.sales.ConnectionPricingRepository;
+import com.cybermanager.domain.port.sales.SaleRepository;
 import com.cybermanager.domain.port.session.CafeSessionRepository;
 import org.junit.jupiter.api.Test;
 
@@ -36,12 +39,17 @@ class SessionApplicationServiceTest {
         CustomerRepository customerRepository = mock(CustomerRepository.class);
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository);
+        SaleRepository saleRepository = mock(SaleRepository.class);
+        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository);
 
         Customer created = Customer.createWalkIn("Alice");
 
         when(customerRepository.save(any(Customer.class))).thenReturn(created);
         when(sessionRepository.save(any(CafeSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(saleRepository.findByCustomerId(any(CustomerId.class))).thenReturn(List.of());
+        when(pricingRepository.getCurrentRule()).thenReturn(new ConnectionPricingRule(List.of(
+                new ConnectionPricingTier(30, Money.of("1.50"))
+        )));
 
         var result = service.execute(new StartSessionCommand(null, "Alice"));
 
@@ -55,13 +63,15 @@ class SessionApplicationServiceTest {
         CustomerRepository customerRepository = mock(CustomerRepository.class);
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository);
+        SaleRepository saleRepository = mock(SaleRepository.class);
+        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository);
 
         UUID customerUuid = UUID.fromString("66666666-6666-6666-6666-666666666666");
         Customer customer = new Customer(new CustomerId(customerUuid), "Client Abonne", CustomerType.SUBSCRIBER, CustomerStatus.ACTIVE, 180);
 
         when(customerRepository.findById(new CustomerId(customerUuid))).thenReturn(Optional.of(customer));
         when(sessionRepository.save(any(CafeSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(saleRepository.findByCustomerId(any(CustomerId.class))).thenReturn(List.of());
 
         var result = service.execute(new StartSessionCommand(customerUuid, null));
 
@@ -76,7 +86,8 @@ class SessionApplicationServiceTest {
         CustomerRepository customerRepository = mock(CustomerRepository.class);
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository);
+        SaleRepository saleRepository = mock(SaleRepository.class);
+        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository);
 
         UUID customerUuid = UUID.randomUUID();
         Customer customer = new Customer(new CustomerId(customerUuid), "Client Abonne", CustomerType.SUBSCRIBER, CustomerStatus.ACTIVE, 0);
@@ -92,7 +103,8 @@ class SessionApplicationServiceTest {
         CustomerRepository customerRepository = mock(CustomerRepository.class);
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository);
+        SaleRepository saleRepository = mock(SaleRepository.class);
+        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository);
 
         UUID customerUuid = UUID.randomUUID();
         SessionId sessionId = new SessionId(UUID.randomUUID());
@@ -103,6 +115,9 @@ class SessionApplicationServiceTest {
                 "SESSION",
                 LocalDateTime.now().minusMinutes(45),
                 null,
+                null,
+                false,
+                0,
                 0,
                 Money.of("0")
         );
@@ -112,8 +127,9 @@ class SessionApplicationServiceTest {
         when(customerRepository.findById(new CustomerId(customerUuid))).thenReturn(Optional.of(customer));
         when(customerRepository.save(any(Customer.class))).thenReturn(updatedCustomer);
         when(sessionRepository.save(any(CafeSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(saleRepository.findByCustomerId(any(CustomerId.class))).thenReturn(List.of());
 
-        var result = service.execute(new StopSessionCommand(sessionId.value()));
+        var result = service.execute(new StopSessionCommand(sessionId.value(), false));
 
         assertEquals("Client Abonne", result.customerName());
         assertEquals("SUBSCRIBER", result.customerType());
@@ -126,7 +142,8 @@ class SessionApplicationServiceTest {
         CustomerRepository customerRepository = mock(CustomerRepository.class);
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository);
+        SaleRepository saleRepository = mock(SaleRepository.class);
+        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository);
 
         UUID customerUuid = UUID.randomUUID();
         SessionId sessionId = new SessionId(UUID.randomUUID());
@@ -137,6 +154,9 @@ class SessionApplicationServiceTest {
                 "SESSION",
                 LocalDateTime.now().minusMinutes(90),
                 null,
+                null,
+                false,
+                0,
                 0,
                 Money.of("0")
         );
@@ -148,10 +168,64 @@ class SessionApplicationServiceTest {
                 new ConnectionPricingTier(30, Money.of("1.50")),
                 new ConnectionPricingTier(60, Money.of("2.50"))
         )));
+        when(saleRepository.findByCustomerId(any(CustomerId.class))).thenReturn(List.of());
 
-        var result = service.execute(new StopSessionCommand(sessionId.value()));
+        var result = service.execute(new StopSessionCommand(sessionId.value(), false));
 
         assertEquals(new java.math.BigDecimal("4.00"), result.calculatedPrice());
+        assertEquals(new java.math.BigDecimal("4.00"), result.totalAmountDue());
         assertEquals("Alice", result.customerName());
+    }
+
+    @Test
+    void shouldPauseAndResumeSessionWithoutStoppingIt() {
+        CafeSessionRepository sessionRepository = mock(CafeSessionRepository.class);
+        CustomerRepository customerRepository = mock(CustomerRepository.class);
+        ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
+        DebtRepository debtRepository = mock(DebtRepository.class);
+        SaleRepository saleRepository = mock(SaleRepository.class);
+        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository);
+
+        UUID customerUuid = UUID.randomUUID();
+        SessionId sessionId = new SessionId(UUID.randomUUID());
+        Customer customer = new Customer(new CustomerId(customerUuid), "Pause Test", CustomerType.WALK_IN, CustomerStatus.ACTIVE, 0);
+        CafeSession session = new CafeSession(
+                sessionId,
+                new CustomerId(customerUuid),
+                "SESSION",
+                LocalDateTime.now().minusMinutes(20),
+                null,
+                null,
+                false,
+                0,
+                0,
+                Money.of("0")
+        );
+
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
+        when(customerRepository.findById(new CustomerId(customerUuid))).thenReturn(Optional.of(customer));
+        when(sessionRepository.save(any(CafeSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pricingRepository.getCurrentRule()).thenReturn(new ConnectionPricingRule(List.of(new ConnectionPricingTier(30, Money.of("1.50")))));
+        when(saleRepository.findByCustomerId(any(CustomerId.class))).thenReturn(List.of());
+
+        var paused = service.execute(new PauseSessionCommand(sessionId.value()));
+        assertEquals(true, paused.paused());
+
+        var pausedSession = new CafeSession(
+                sessionId,
+                new CustomerId(customerUuid),
+                "SESSION",
+                session.startedAt(),
+                null,
+                LocalDateTime.now().minusMinutes(5),
+                false,
+                0,
+                0,
+                Money.of("0")
+        );
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(pausedSession));
+
+        var resumed = service.execute(new ResumeSessionCommand(sessionId.value()));
+        assertEquals(false, resumed.paused());
     }
 }

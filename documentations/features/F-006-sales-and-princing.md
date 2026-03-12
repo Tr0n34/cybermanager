@@ -53,6 +53,7 @@ La tarification du temps de connexion doit reposer sur une grille configurable d
 - les abonnes doivent etre recherchables sans liste exhaustive
 - les clients journaliers utilises dans les ventes proviennent des flux de session ou du contexte du jour
 - toute vente peut etre transformee en dette ouverte si l'utilisateur choisit de ne pas encaisser immediatement
+- les dates et heures affichees dans les historiques de vente suivent le format `JJ/MM/AAAA HH:mm`
 
 ## Backend
 
@@ -104,6 +105,7 @@ La tarification du temps de connexion doit reposer sur une grille configurable d
 - `POST /api/sales/subscriptions` attend `customerId`, `subscriptionOfferId` et `createDebt`
 - `POST /api/sales/connection-time` attend `customerId`, `minutes` et `createDebt`
 - `GET /api/pricing/connection-time` retourne la grille active avec `hours`, `minutes`, `durationMinutes` et `price`
+- les erreurs metier retournent un payload stable avec `code`, `message`, `status` et `timestamp`
 
 ## Frontend
 
@@ -134,6 +136,7 @@ La tarification du temps de connexion doit reposer sur une grille configurable d
 - le formulaire de vente d'abonnement rappelle que les abonnements se cumulent
 - le bouton d'ouverture du panneau de vente masque le bouton de creation tant que le panneau est ouvert
 - chaque creation de vente met a jour l'historique du jour sans rechargement manuel de la page
+- l'historique et les tableaux de vente restent compacts avec espaces reduits pour un usage comptoir
 - la configuration tarifaire permet d'ajouter, retirer et enregistrer des plages de duree
 - l'ecran de configuration affiche la grille active avec la duree et le prix de chaque plage
 - la configuration tarifaire met a jour l'affichage du formulaire de vente de temps et la facturation des sessions journalieres

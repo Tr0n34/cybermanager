@@ -3,6 +3,7 @@ package com.cybermanager.api.controllers.customer;
 import com.cybermanager.api.dtos.customer.CustomerDtos.*;
 import com.cybermanager.api.shared.ApiSupport;
 import com.cybermanager.application.commands.customer.ConvertCustomerToSubscriberCommand;
+import com.cybermanager.application.commands.customer.CreateDebtFromSaleCommand;
 import com.cybermanager.application.commands.customer.CreateCustomerCommand;
 import com.cybermanager.application.commands.customer.SettleDebtCommand;
 import com.cybermanager.application.commands.customer.UpdateCustomerCommand;
@@ -53,7 +54,8 @@ public class CustomerController {
                         purchase.type(),
                         purchase.label(),
                         purchase.soldAt(),
-                        purchase.totalAmount()
+                        purchase.totalAmount(),
+                        purchase.openDebt()
                 )).toList(),
                 view.debts().stream().map(debt -> new CustomerDebtResponse(
                         debt.debtId(),
@@ -112,6 +114,13 @@ public class CustomerController {
     public ResponseEntity<Void> settleDebt(@RequestHeader("Authorization") String authorization, @PathVariable("debtId") UUID debtId) {
         var actor = ApiSupport.actor(authorization, tokenReader);
         service.execute(new SettleDebtCommand(actor.email(), actor.roles(), debtId));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/sales/{saleId}/create-debt")
+    public ResponseEntity<Void> createDebtFromSale(@RequestHeader("Authorization") String authorization, @PathVariable("saleId") UUID saleId) {
+        var actor = ApiSupport.actor(authorization, tokenReader);
+        service.execute(new CreateDebtFromSaleCommand(actor.email(), actor.roles(), saleId));
         return ResponseEntity.noContent().build();
     }
 }

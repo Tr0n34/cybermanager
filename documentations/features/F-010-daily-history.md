@@ -23,6 +23,10 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 - exposition d'un endpoint de synthese par jour et d'un endpoint de detail client
 - reutilisation d'un modele de restitution centre sur les ventes et sessions historisees
 - ajout d'une page Angular de reporting avec selecteur de date, liste et detail
+- extension a une plage de dates `startDate` / `endDate`
+- ajout d'un filtre reactif par nom
+- ajout d'un encart de synthese `Argent encaisse` / `Dette creee`
+- alignement du detail avec le monitoring : ventes structurees et evenements de session en francais
 
 ## Bounded context
 
@@ -35,10 +39,12 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 ## Regles metier
 
 - l'historique est consultable par date
+- l'historique est aussi consultable par plage de dates
 - pour chaque client, il faut retrouver les consommations du jour
 - pour chaque client, il faut retrouver les abonnements achetes
 - pour chaque client, il faut retrouver les durees d'usage d'un poste
 - les donnees d'une journee cloturee ne doivent pas etre alterees dans leur restitution metier
+- le filtre par nom reagit des les premieres lettres
 
 ## Backend
 
@@ -63,13 +69,12 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 - DayHistoryQueryAdapter
 
 ### API
-- GET /api/history/days/{date}
-- GET /api/history/days/{date}/customers
-- GET /api/history/days/{date}/customers/{id}
+- GET /api/history/days?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+- GET /api/history/days/customers/{id}?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
 
 ### Donnees restituees
-- `GET /api/history/days/{date}` et `GET /api/history/days/{date}/customers` retournent la date et la liste des clients avec `totalMinutes` et `salesTotal`
-- `GET /api/history/days/{date}/customers/{id}` retourne le detail de ventes et de sessions pour le client demande
+- `GET /api/history/days?...` retourne la periode et la liste des clients avec `totalMinutes`, `salesTotal`, `debtTotal`, `collectedTotal`
+- `GET /api/history/days/customers/{id}?...` retourne le detail de ventes et de sessions pour le client demande
 
 ## Frontend
 
@@ -86,11 +91,14 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 
 ### Navigation et comportements UI
 - l'utilisateur choisit une date puis recharge la liste historique correspondante
+- l'utilisateur peut choisir une date de debut et une date de fin
 - la liste des clients de la journee est affichee dans le meme ecran
 - la selection d'un client ouvre son detail de journee sans perdre le contexte de date
 - le changement de date recharge les indicateurs et les listes associees
 - l'ecran doit permettre de consulter rapidement la synthese d'une journee avant d'ouvrir un detail client
 - les erreurs de chargement sont visibles dans la page
+- la recherche par nom filtre immediatement la liste sans clic supplementaire
+- la colonne de detail a droite reste compacte et alignee en haut
 
 ## Criteres d'acceptation
 
@@ -99,3 +107,4 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 - les achats produits, abonnements et durees d'usage sont visibles
 - le detail d'un client sur la journee est consultable
 - l'ecran garde une navigation coherente entre filtre par date, liste et detail
+- les details de reporting sont approfondis dans `F-015-historical-reporting-by-period.md`

@@ -13,6 +13,7 @@ export interface CustomerPurchase {
   label: string;
   soldAt: string;
   totalAmount: number;
+  openDebt: boolean;
 }
 
 export interface CustomerDetails extends Customer {

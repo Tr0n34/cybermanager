@@ -13,7 +13,14 @@ public record SessionView(
         String workstation,
         LocalDateTime startedAt,
         LocalDateTime endedAt,
+        boolean paused,
+        boolean paid,
+        int consumedSeconds,
         int consumedMinutes,
-        BigDecimal calculatedPrice
+        BigDecimal calculatedPrice,
+        BigDecimal purchasesAmount,
+        BigDecimal openDebtAmount,
+        BigDecimal totalAmountDue,
+        BigDecimal totalPaidAmount
 ) {
 }
