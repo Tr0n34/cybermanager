@@ -16,27 +16,19 @@ import { SubscriptionOffersApiService } from '../services/subscription-offers-ap
           <p class="eyebrow">Bounded context subscription</p>
           <h2>Offres d'abonnement</h2>
         </div>
-
-        <div class="filters" [formGroup]="filters">
-          <input formControlName="term" placeholder="Filtrer par nom" />
-
-          <select formControlName="status">
-            <option value="">Tous les statuts</option>
-            <option value="ACTIVE">Actives</option>
-            <option value="INACTIVE">Inactives</option>
-          </select>
-
-          <select formControlName="pageSize">
-            <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }} / page</option>
-          </select>
-
-          <button *ngIf="!isPanelOpen()" type="button" class="secondary" (click)="openCreatePanel()">Nouvelle offre</button>
-        </div>
       </header>
 
       <p class="error" *ngIf="error()">{{ error() }}</p>
 
       <div class="toolbar">
+        <div class="section-title-group">
+          <button type="button" class="ghost filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
+            <span class="filter-icon" aria-hidden="true"></span>
+            <span>Filtres</span>
+          </button>
+          <button type="button" (click)="openCreatePanel()">Creer une nouvelle offre</button>
+        </div>
+
         <p class="summary">
           {{ filteredOffers().length }} offre{{ filteredOffers().length > 1 ? 's' : '' }}
           <span *ngIf="filteredOffers().length !== offers().length">sur {{ offers().length }}</span>
@@ -47,6 +39,29 @@ import { SubscriptionOffersApiService } from '../services/subscription-offers-ap
           <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
           <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
         </div>
+      </div>
+
+      <div class="filters-grid collapsible" [class.is-collapsed]="!showFilters()" [formGroup]="filters">
+        <label class="field">
+          <span>Recherche par nom</span>
+          <input formControlName="term" placeholder="Nom de l'offre" />
+        </label>
+
+        <label class="field">
+          <span>Statut</span>
+          <select formControlName="status">
+            <option value="">Tous les statuts</option>
+            <option value="ACTIVE">Actives</option>
+            <option value="INACTIVE">Inactives</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Taille de page</span>
+          <select formControlName="pageSize">
+            <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }} / page</option>
+          </select>
+        </label>
       </div>
 
       <div class="grid" [class.panel-open]="isPanelOpen()">
@@ -112,7 +127,6 @@ import { SubscriptionOffersApiService } from '../services/subscription-offers-ap
               {{ selected()?.status === 'ACTIVE' ? 'Desactiver' : 'Activer' }}
             </button>
             <button *ngIf="selected()" type="button" class="danger" (click)="deleteOffer()">Supprimer</button>
-            <button *ngIf="selected()" type="button" class="ghost" (click)="openCreatePanel()">Nouvelle</button>
           </div>
         </form>
       </div>
@@ -122,11 +136,18 @@ import { SubscriptionOffersApiService } from '../services/subscription-offers-ap
     .page, .form { display: grid; gap: 1rem; }
     .hero { display: grid; gap: 1rem; }
     .eyebrow { margin: 0; color: #ff7b00; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.72rem; }
-    .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
     input, select { border: 1px solid #cbd5e1; border-radius: 0.85rem; padding: 0.8rem 0.9rem; font: inherit; background: #fff; }
     .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
     .summary { margin: 0; color: #334155; font-weight: 600; }
     .pager { display: inline-flex; align-items: center; gap: 0.75rem; color: #475569; }
+    .section-title-group { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .filters-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .filters-grid .field { display: grid; gap: 0.28rem; align-content: start; }
+    .filters-grid .field span { font-size: 0.78rem; font-weight: 700; color: #334155; line-height: 1.1; }
+    .filters-grid .field input, .filters-grid .field select { width: 100%; border-radius: 999px; background: #fff; }
+    .filter-toggle { padding: 0.5rem 0.78rem !important; border-radius: 999px !important; }
+    .filter-icon { position: relative; display: inline-block; width: 0.88rem; height: 0.7rem; }
+    .filter-icon::before { content: ""; position: absolute; left: 0; right: 0; top: 0.02rem; height: 0.12rem; border-radius: 999px; background: currentColor; box-shadow: 0 0.24rem 0 currentColor, 0 0.48rem 0 currentColor; }
     .grid { display: grid; grid-template-columns: minmax(0, 1fr) 0fr; gap: 1.5rem; align-items: start; transition: grid-template-columns 220ms ease-out; }
     .grid.panel-open { grid-template-columns: minmax(0, 1.4fr) minmax(22rem, 0.88fr); }
     .panel { background: rgba(255,255,255,0.84); border-radius: 1.2rem; padding: 1.1rem; }
@@ -170,6 +191,7 @@ import { SubscriptionOffersApiService } from '../services/subscription-offers-ap
     .status-badge.inactive { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; box-shadow: inset 0 0 0 1px rgba(153, 27, 27, 0.08); }
 
     @media (max-width: 1000px) {
+      .filters-grid { grid-template-columns: 1fr; }
       .grid, .grid.panel-open { grid-template-columns: 1fr; }
       .side-panel, .side-panel.open { max-width: none; padding-inline: 1.1rem; opacity: 1; transform: none; }
       .side-panel:not(.open) { display: none; }
@@ -184,6 +206,7 @@ export class SubscriptionOffersPageComponent {
   readonly offers = signal<SubscriptionOffer[]>([]);
   readonly selected = signal<SubscriptionOffer | null>(null);
   readonly isPanelOpen = signal(false);
+  readonly showFilters = signal(false);
   readonly page = signal(1);
   readonly error = signal('');
   readonly filters = this.fb.nonNullable.group({ term: [''], status: [''], pageSize: [10] });

@@ -26,6 +26,8 @@ Permettre de definir des offres d'abonnement avec un prix et une duree de connex
 - ajout de la suppression des offres
 - refonte de l'ecran en mode liste compacte + panneau lateral refermable
 - filtres instantanes et pagination avec taille de page configurable
+- normalisation recente de l'ecran CRUD avec bouton `Filtres`, panneau `filters-grid collapsible` anime et bouton principal `Creer une nouvelle offre`
+- suppression du bouton `Nouvelle` du panneau de droite pour garder une action de creation unique et visible
 
 ## Bounded context
 
@@ -107,7 +109,8 @@ Permettre de definir des offres d'abonnement avec un prix et une duree de connex
 - le filtrage par libelle et statut est immediat et client side
 - la taille de page est configurable et la pagination garde le meme flux utilisateur
 - le tableau reste compact pour afficher davantage d'offres dans une hauteur reduite
-- le bouton de creation ouvre un panneau de droite vide avec animation puis disparait tant que le panneau est ouvert
+- le bouton `Creer une nouvelle offre` reste visible en haut de page a cote du bouton `Filtres`
+- le panneau de filtres adopte la meme animation d'ouverture / fermeture que les autres ecrans CRUD frontend
 - l'edition d'une offre recharge le formulaire avec les donnees courantes dans ce meme panneau
 - apres sauvegarde, changement de statut ou suppression, la liste est rechargee
 - l'utilisateur reste sur le meme ecran apres action avec retour immediat sur la liste mise a jour

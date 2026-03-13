@@ -30,6 +30,8 @@ import com.cybermanager.domain.port.customer.DebtRepository;
 import com.cybermanager.domain.port.sales.ConnectionPricingRepository;
 import com.cybermanager.domain.port.sales.SaleRepository;
 import com.cybermanager.domain.port.session.CafeSessionRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +50,7 @@ public class SessionApplicationService implements
         SearchSessionsOfDayUseCase,
         GetCurrentSessionsUseCase {
     private static final String DEFAULT_WORKSTATION = "SESSION";
+    private static final Logger LOGGER = LoggerFactory.getLogger(SessionApplicationService.class);
 
     private final CafeSessionRepository sessionRepository;
     private final CustomerRepository customerRepository;
@@ -71,32 +74,44 @@ public class SessionApplicationService implements
 
     @Override
     public SessionView execute(StartSessionCommand command) {
+        LOGGER.info(
+                "Starting session customerId={} hasWalkInName={}",
+                command.customerId(),
+                command.customerName() != null && !command.customerName().isBlank()
+        );
         Customer customer;
         if (command.customerId() != null) {
             customer = customerRepository.findById(new CustomerId(command.customerId()))
                     .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
             if (customer.type() != CustomerType.SUBSCRIBER) {
+                LOGGER.warn("Session start rejected because customer is not a subscriber customerId={}", customer.id().value());
                 throw new BusinessException(BusinessErrorType.VALIDATION, "SESSION_SUBSCRIBER_REQUIRED", "Only subscribers can be searched and reused");
             }
         } else if (command.customerName() != null && !command.customerName().isBlank()) {
             customer = customerRepository.save(Customer.createWalkIn(command.customerName().trim()));
+            LOGGER.info("Walk-in customer created for session customerId={} name={}", customer.id().value(), customer.name());
         } else {
+            LOGGER.warn("Session start rejected because no customer information was provided");
             throw new BusinessException(BusinessErrorType.VALIDATION, "SESSION_CUSTOMER_REQUIRED", "Customer name or subscriber is required");
         }
 
         if (customer.status() != CustomerStatus.ACTIVE) {
+            LOGGER.warn("Session start rejected because customer is inactive customerId={}", customer.id().value());
             throw new BusinessException(BusinessErrorType.FORBIDDEN, "CUSTOMER_INACTIVE", "Customer is not active");
         }
         if (customer.type() == CustomerType.SUBSCRIBER && customer.remainingMinutes() <= 0) {
+            LOGGER.warn("Session start rejected because subscriber has no remaining minutes customerId={}", customer.id().value());
             throw new BusinessException(BusinessErrorType.VALIDATION, "SUBSCRIBER_NO_REMAINING_MINUTES", "Subscriber has no remaining minutes");
         }
 
         var session = sessionRepository.save(CafeSession.start(customer.id(), DEFAULT_WORKSTATION, LocalDateTime.now()));
+        LOGGER.info("Session started sessionId={} customerId={} customerType={}", session.id().value(), customer.id().value(), customer.type());
         return toView(session, customer);
     }
 
     @Override
     public SessionView execute(StopSessionCommand command) {
+        LOGGER.info("Stopping session sessionId={} paid={}", command.sessionId(), command.paid());
         var session = sessionRepository.findById(new SessionId(command.sessionId()))
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SESSION_NOT_FOUND", "Session not found"));
         var customer = customerRepository.findById(session.customerId())
@@ -108,53 +123,71 @@ public class SessionApplicationService implements
             ConnectionPricingRule pricing = connectionPricingRepository.getCurrentRule();
             int minutes = session.consumedMinutesUntil(stoppedAt);
             price = pricing.priceForMinutes(minutes);
+            LOGGER.debug("Walk-in session pricing computed sessionId={} customerId={} consumedMinutes={} price={}", session.id().value(), customer.id().value(), minutes, price.amount());
             if (!command.paid() && price.amount().signum() > 0) {
                 debtRepository.save(DebtRecord.create(customer.id(), "Session du " + DateTimeLabelFormatter.format(session.startedAt()), price, stoppedAt));
+                LOGGER.info("Session debt created sessionId={} customerId={} amount={}", session.id().value(), customer.id().value(), price.amount());
             }
         } else {
             int consumedMinutes = session.consumedMinutesUntil(stoppedAt);
             customer = customerRepository.save(customer.deductMinutes(consumedMinutes));
+            LOGGER.debug("Subscriber minutes deducted customerId={} consumedMinutes={} remainingMinutes={}", customer.id().value(), consumedMinutes, customer.remainingMinutes());
         }
 
-        return toView(sessionRepository.save(session.stop(stoppedAt, price, command.paid())), customer);
+        var stoppedSession = sessionRepository.save(session.stop(stoppedAt, price, command.paid()));
+        LOGGER.info("Session stopped sessionId={} customerId={} paid={} calculatedPrice={}", stoppedSession.id().value(), customer.id().value(), command.paid(), price.amount());
+        return toView(stoppedSession, customer);
     }
 
     @Override
     public SessionView execute(PauseSessionCommand command) {
+        LOGGER.info("Pausing session sessionId={}", command.sessionId());
         var session = sessionRepository.findById(new SessionId(command.sessionId()))
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SESSION_NOT_FOUND", "Session not found"));
         if (session.paused()) {
+            LOGGER.warn("Pause rejected because session is already paused sessionId={}", command.sessionId());
             throw new BusinessException(BusinessErrorType.CONFLICT, "SESSION_ALREADY_PAUSED", "Session is already paused");
         }
         var customer = customerRepository.findById(session.customerId())
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
-        return toView(sessionRepository.save(session.pause(LocalDateTime.now())), customer);
+        var pausedSession = sessionRepository.save(session.pause(LocalDateTime.now()));
+        LOGGER.info("Session paused sessionId={} customerId={}", pausedSession.id().value(), customer.id().value());
+        return toView(pausedSession, customer);
     }
 
     @Override
     public SessionView execute(ResumeSessionCommand command) {
+        LOGGER.info("Resuming session sessionId={}", command.sessionId());
         var session = sessionRepository.findById(new SessionId(command.sessionId()))
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SESSION_NOT_FOUND", "Session not found"));
         if (!session.paused()) {
+            LOGGER.warn("Resume rejected because session is not paused sessionId={}", command.sessionId());
             throw new BusinessException(BusinessErrorType.CONFLICT, "SESSION_NOT_PAUSED", "Session is not paused");
         }
         var customer = customerRepository.findById(session.customerId())
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
-        return toView(sessionRepository.save(session.resume(LocalDateTime.now())), customer);
+        var resumedSession = sessionRepository.save(session.resume(LocalDateTime.now()));
+        LOGGER.info("Session resumed sessionId={} customerId={}", resumedSession.id().value(), customer.id().value());
+        return toView(resumedSession, customer);
     }
 
     @Transactional(readOnly = true)
     @Override
     public List<SessionView> execute(SearchSessionsOfDayQuery query) {
-        return sessionRepository.findByDay(query.date() == null ? LocalDate.now() : query.date()).stream()
+        LocalDate date = query.date() == null ? LocalDate.now() : query.date();
+        var sessions = sessionRepository.findByDay(date).stream()
                 .map(this::toView)
                 .toList();
+        LOGGER.debug("Sessions of day loaded date={} count={}", date, sessions.size());
+        return sessions;
     }
 
     @Transactional(readOnly = true)
     @Override
     public CurrentSessionsView execute() {
-        return new CurrentSessionsView(sessionRepository.findActive().stream().map(this::toView).toList());
+        var sessions = sessionRepository.findActive().stream().map(this::toView).toList();
+        LOGGER.debug("Current sessions loaded count={}", sessions.size());
+        return new CurrentSessionsView(sessions);
     }
 
     private SessionView toView(CafeSession session) {
@@ -195,6 +228,17 @@ public class SessionApplicationService implements
         BigDecimal paidConnectionAmount = session.paid() ? connectionAmount.amount() : BigDecimal.ZERO;
         Money totalAmountDue = new Money(dueConnectionAmount.add(openSalesDebtAmount));
         Money totalPaidAmount = new Money(paidPurchasesAmount.add(paidConnectionAmount));
+        LOGGER.debug(
+                "Session financial snapshot sessionId={} customerId={} customerType={} consumedMinutes={} purchases={} openDebt={} totalDue={} totalPaid={}",
+                session.id().value(),
+                customer.id().value(),
+                customer.type(),
+                consumedMinutes,
+                purchasesAmount.amount(),
+                openDebtAmount.amount(),
+                totalAmountDue.amount(),
+                totalPaidAmount.amount()
+        );
         return new SessionView(
                 session.id().value(),
                 customer.id().value(),

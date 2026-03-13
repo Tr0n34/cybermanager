@@ -53,7 +53,7 @@ import { ReportingApiService } from '../services/reporting-api.service';
             <tbody>
               <tr *ngFor="let item of filteredCustomers()">
                 <td>{{ item.name }}</td>
-                <td>{{ item.type }}</td>
+                <td><span [class]="customerTypeChipClass(item.type)">{{ customerTypeLabel(item.type) }}</span></td>
                 <td>{{ item.totalMinutes }} min</td>
                 <td>{{ item.salesTotal | number:'1.2-2' }} EUR</td>
                 <td>{{ item.debtTotal | number:'1.2-2' }} EUR</td>
@@ -190,6 +190,14 @@ export class ReportingPageComponent {
       },
       error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Chargement du detail impossible')),
     });
+  }
+
+  customerTypeLabel(type: string): string {
+    return type === 'SUBSCRIBER' ? 'Abonne' : 'Client';
+  }
+
+  customerTypeChipClass(type: string): string {
+    return type === 'SUBSCRIBER' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
   }
 
   private applyFilter(): void {

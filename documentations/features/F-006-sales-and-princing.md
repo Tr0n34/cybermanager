@@ -29,6 +29,9 @@ La tarification du temps de connexion doit reposer sur une grille configurable d
 - remplacement de la liste exhaustive des clients par une recherche ciblee avec autocompletion
 - ajout de la vente produit depuis le flux session pour un client deja selectionne
 - ajout d'une case a cocher pour enregistrer une vente en dette, quel que soit le type de vente
+- ajout d'un filtre frontend de l'historique du jour par type de vente et par article
+- traduction frontend des types de vente en francais : `Produits`, `Temps de connexion`, `Abonnement`
+- repositionnement des actions de l'ecran ventes sous le titre, alignees a gauche
 
 ## Bounded context
 
@@ -131,10 +134,12 @@ La tarification du temps de connexion doit reposer sur une grille configurable d
 - les listes de produits et d'abonnements se chargent avant la creation d'une vente
 - la selection d'un client ne doit pas reposer sur une liste exhaustive de tous les clients journaliers historiques
 - un client ou un abonne est retrouve par autocompletion sur saisie du nom
+- l'historique du jour peut etre filtre par type de vente ou par article vendu
+- les types de vente affiches dans l'UI sont libelles en francais
 - la vente produit impose une selection effective du produit dans le formulaire
 - chaque formulaire de vente propose une case a cocher `Creer une dette au lieu d'encaisser`
 - le formulaire de vente d'abonnement rappelle que les abonnements se cumulent
-- le bouton d'ouverture du panneau de vente masque le bouton de creation tant que le panneau est ouvert
+- les actions `Filtres`, `Configurer les tarifs` et `Nouvelle vente` sont regroupees sous le titre de l'ecran
 - chaque creation de vente met a jour l'historique du jour sans rechargement manuel de la page
 - l'historique et les tableaux de vente restent compacts avec espaces reduits pour un usage comptoir
 - la configuration tarifaire permet d'ajouter, retirer et enregistrer des plages de duree

@@ -13,6 +13,7 @@ import { ProductsApiService } from '../../products/services/products-api.service
 import type { SubscriptionOffer } from '../../subscriptions/models/subscription-offer.models';
 import { SubscriptionOffersApiService } from '../../subscriptions/services/subscription-offers-api.service';
 import { SalesApiService } from '../../sales/services/sales-api.service';
+import { AppLoggerService } from '../../../core/services/app-logger.service';
 import type { CafeSession } from '../models/session.models';
 import { SessionDisplaySettingsService } from '../services/session-display-settings.service';
 import { SessionsApiService } from '../services/sessions-api.service';
@@ -151,7 +152,7 @@ type SessionDetailEntry = {
                 <p class="meta">{{ filteredCurrent().length }} resultat(s)</p>
               </div>
             </div>
-            <div class="filters-grid" *ngIf="showCurrentFilters()">
+            <div class="filters-grid collapsible" [class.is-collapsed]="!showCurrentFilters()">
               <label class="field">
                 <span>Recherche par nom</span>
                 <input [formControl]="currentFilters.controls.term" placeholder="Nom du client" />
@@ -170,7 +171,7 @@ type SessionDetailEntry = {
                   <ng-container *ngFor="let item of pagedCurrent()">
                     <tr [class.active-row]="sessionState(item) === 'En cours'" [class.paused-row]="sessionState(item) === 'Pause'" [class.paid-row]="sessionState(item) === 'Paye'">
                       <td class="client-cell">{{ item.customerName }}</td>
-                      <td class="center-cell">{{ item.customerType === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</td>
+                      <td class="center-cell"><span [class]="customerTypeChipClass(item.customerType)">{{ customerTypeLabel(item.customerType) }}</span></td>
                       <td class="center-cell"><span class="inline-state" [class.paused-chip]="sessionState(item) === 'Pause'" [class.active-chip]="sessionState(item) === 'En cours'" [class.paid-chip]="sessionState(item) === 'Paye'">{{ sessionState(item) }}</span></td>
                       <td class="center-cell">
                         <span *ngIf="item.customerType === 'SUBSCRIBER'; else noCredit">{{ formatRemaining(item) }}</span>
@@ -208,7 +209,7 @@ type SessionDetailEntry = {
 
                             <section class="stack">
                               <h4>Resume abonnement</h4>
-                              <p class="muted"><strong>Type :</strong> {{ details.type === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</p>
+                              <p class="muted"><strong>Type :</strong> <span [class]="customerTypeChipClass(details.type)">{{ customerTypeLabel(details.type) }}</span></p>
                               <p class="muted"><strong>Abonnements :</strong> {{ details.currentSubscriptionLabel ?? 'Aucun' }}</p>
                               <p class="muted" *ngIf="details.type === 'SUBSCRIBER'">Les abonnements se cumulent.</p>
                               <p class="muted"><strong>Credit :</strong> {{ details.remainingMinutes }} min</p>
@@ -255,7 +256,7 @@ type SessionDetailEntry = {
               <p class="meta">{{ filteredDay().length }} resultat(s)</p>
             </div>
           </div>
-          <div class="filters-grid" *ngIf="showDayFilters()">
+            <div class="filters-grid collapsible" [class.is-collapsed]="!showDayFilters()">
             <label class="field">
               <span>Recherche par nom</span>
               <input [formControl]="dayFilters.controls.term" placeholder="Nom du client" />
@@ -274,7 +275,7 @@ type SessionDetailEntry = {
                 <ng-container *ngFor="let item of pagedDay()">
                   <tr>
                     <td class="client-cell">{{ item.customerName }}</td>
-                    <td class="center-cell">{{ item.customerType === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</td>
+                    <td class="center-cell"><span [class]="customerTypeChipClass(item.customerType)">{{ customerTypeLabel(item.customerType) }}</span></td>
                     <td class="center-cell">{{ item.consumedMinutes }} min</td>
                     <td class="center-cell">
                       <span *ngIf="item.customerType === 'SUBSCRIBER'; else noDayCredit">{{ item.remainingMinutes }} min</span>
@@ -309,7 +310,7 @@ type SessionDetailEntry = {
 
                           <section class="stack">
                             <h4>Resume abonnement</h4>
-                            <p class="muted"><strong>Type :</strong> {{ details.type === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</p>
+                            <p class="muted"><strong>Type :</strong> <span [class]="customerTypeChipClass(details.type)">{{ customerTypeLabel(details.type) }}</span></p>
                             <p class="muted"><strong>Abonnements :</strong> {{ details.currentSubscriptionLabel ?? 'Aucun' }}</p>
                             <p class="muted" *ngIf="details.type === 'SUBSCRIBER'">Les abonnements se cumulent.</p>
                             <p class="muted"><strong>Credit :</strong> {{ details.remainingMinutes }} min</p>
@@ -378,7 +379,7 @@ type SessionDetailEntry = {
           <div class="section-head">
             <div>
               <h3>{{ saleModalType() === 'subscription' ? 'Vendre un abonnement' : 'Vendre un produit' }}</h3>
-              <p class="meta">{{ session.customerName }} - {{ session.customerType === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</p>
+              <p class="meta">{{ session.customerName }} - <span [class]="customerTypeChipClass(session.customerType)">{{ customerTypeLabel(session.customerType) }}</span></p>
             </div>
             <button type="button" class="ghost" (click)="closeSaleModal()">Fermer</button>
           </div>
@@ -429,6 +430,7 @@ export class SessionsPageComponent {
   private readonly salesApi = inject(SalesApiService);
   private readonly api = inject(SessionsApiService);
   private readonly settingsService = inject(SessionDisplaySettingsService);
+  private readonly logger = inject(AppLoggerService);
   private readonly fb = inject(FormBuilder);
 
   readonly current = signal<CafeSession[]>([]);
@@ -473,16 +475,28 @@ export class SessionsPageComponent {
   readonly pagedCurrent = computed(() => this.paginate(this.filteredCurrent(), this.currentPage(), this.settingsService.settings().currentPageSize));
   readonly pagedDay = computed(() => this.paginate(this.filteredDay(), this.dayPage(), this.settingsService.settings().dayPageSize));
   constructor() {
+    this.logger.info('sessions-ui', 'Sessions page initialized');
     this.reload();
     this.loadOffers();
-    this.productsApi.search('', 'ACTIVE', '').subscribe((value) => this.products.set(value));
+    this.productsApi.search('', 'ACTIVE', '').subscribe({
+      next: (value) => {
+        this.products.set(value);
+        this.logger.debug('sessions-ui', 'Products catalog loaded for session flows', { productCount: value.length });
+      },
+      error: (error: HttpErrorResponse) => {
+        this.logger.warn('sessions-ui', 'Unable to preload products catalog', error);
+      },
+    });
 
     this.subscriberSearchForm.controls.term.valueChanges.pipe(
       map((value) => value.trim()),
       debounceTime(150),
       distinctUntilChanged(),
       takeUntilDestroyed(),
-    ).subscribe((term) => this.autocompleteSubscribers(term));
+    ).subscribe((term) => {
+      this.logger.debug('sessions-ui', 'Subscriber autocomplete input updated', { termLength: term.length });
+      this.autocompleteSubscribers(term);
+    });
 
     this.currentFilters.controls.term.valueChanges.pipe(
       map((value) => value.trim()),
@@ -492,6 +506,7 @@ export class SessionsPageComponent {
     ).subscribe((value) => {
       this.currentTerm.set(value);
       this.currentPage.set(1);
+      this.logger.debug('sessions-ui', 'Current sessions filters updated', { termLength: value.length, startedAfter: this.currentStartedAfter() || null });
     });
 
     this.currentFilters.controls.startedAfter.valueChanges.pipe(
@@ -500,6 +515,7 @@ export class SessionsPageComponent {
     ).subscribe((value) => {
       this.currentStartedAfter.set(value);
       this.currentPage.set(1);
+      this.logger.debug('sessions-ui', 'Current sessions date filter updated', { startedAfter: value || null, termLength: this.currentTerm().length });
     });
 
     this.dayFilters.controls.term.valueChanges.pipe(
@@ -510,6 +526,7 @@ export class SessionsPageComponent {
     ).subscribe((value) => {
       this.dayTerm.set(value);
       this.dayPage.set(1);
+      this.logger.debug('sessions-ui', 'Day sessions filters updated', { termLength: value.length, startedAfter: this.dayStartedAfter() || null });
     });
 
     this.dayFilters.controls.startedAfter.valueChanges.pipe(
@@ -518,6 +535,7 @@ export class SessionsPageComponent {
     ).subscribe((value) => {
       this.dayStartedAfter.set(value);
       this.dayPage.set(1);
+      this.logger.debug('sessions-ui', 'Day sessions date filter updated', { startedAfter: value || null, termLength: this.dayTerm().length });
     });
 
     interval(1000).pipe(takeUntilDestroyed()).subscribe(() => {
@@ -531,28 +549,43 @@ export class SessionsPageComponent {
 
   loadOffers(): void {
     this.offersApi.search('', 'ACTIVE').subscribe({
-      next: (offers) => this.offers.set(offers),
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Chargement des offres impossible'),
+      next: (offers) => {
+        this.offers.set(offers);
+        this.logger.debug('sessions-ui', 'Subscription offers loaded for session flows', { offerCount: offers.length });
+      },
+      error: (error: HttpErrorResponse) => {
+        this.logger.warn('sessions-ui', 'Subscription offers loading failed', error);
+        this.error.set(error.error?.message ?? 'Chargement des offres impossible');
+      },
     });
   }
 
   reload(): void {
+    this.logger.debug('sessions-ui', 'Reloading sessions page datasets');
     this.api.current().subscribe({
       next: (value) => {
         this.current.set(value.sessions);
         this.sessionObservedAt.set(Object.fromEntries(value.sessions.map((session) => [session.sessionId, Date.now()])));
         this.currentPage.set(1);
         this.error.set('');
+        this.logger.info('sessions-ui', 'Current sessions loaded', { count: value.sessions.length });
       },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Chargement des sessions en cours impossible'),
+      error: (error: HttpErrorResponse) => {
+        this.logger.warn('sessions-ui', 'Current sessions loading failed', error);
+        this.error.set(error.error?.message ?? 'Chargement des sessions en cours impossible');
+      },
     });
     this.api.day().subscribe({
       next: (value) => {
         this.day.set(value);
         this.dayPage.set(1);
         this.error.set('');
+        this.logger.info('sessions-ui', 'Day sessions loaded', { count: value.length });
       },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Chargement des sessions du jour impossible'),
+      error: (error: HttpErrorResponse) => {
+        this.logger.warn('sessions-ui', 'Day sessions loading failed', error);
+        this.error.set(error.error?.message ?? 'Chargement des sessions du jour impossible');
+      },
     });
   }
 
@@ -565,8 +598,12 @@ export class SessionsPageComponent {
       next: (customers) => {
         this.subscriberResults.set(customers);
         this.error.set('');
+        this.logger.debug('sessions-ui', 'Subscriber autocomplete results received', { termLength: term.length, resultCount: customers.length });
       },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Recherche des abonnes impossible'),
+      error: (error: HttpErrorResponse) => {
+        this.logger.warn('sessions-ui', 'Subscriber autocomplete failed', { termLength: term.length, error });
+        this.error.set(error.error?.message ?? 'Recherche des abonnes impossible');
+      },
     });
   }
 
@@ -861,6 +898,14 @@ export class SessionsPageComponent {
     return session.paid && Number(session.openDebtAmount ?? 0) <= 0.001 ? 'Paye' : 'En cours';
   }
 
+  customerTypeLabel(type: string): string {
+    return type === 'SUBSCRIBER' ? 'Abonne' : 'Client';
+  }
+
+  customerTypeChipClass(type: string): string {
+    return type === 'SUBSCRIBER' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
+  }
+
   stopDialogPurchaseAmount(session: CafeSession): number {
     const details = this.stopDialogDetails();
     if (!details) {
@@ -898,16 +943,36 @@ export class SessionsPageComponent {
     if (requests.length === 0) {
       (event.target as HTMLInputElement).checked = entry.openDebt;
       this.error.set('Action impossible sur cette ligne.');
+      this.logger.warn('sessions-ui', 'Debt toggle ignored because no actionable request was produced', {
+        label: entry.label,
+        saleCount: entry.saleIds.length,
+        debtCount: entry.debtIds.length,
+      });
       return;
     }
 
+    this.logger.info('sessions-ui', 'Toggling debt state from session detail', {
+      action: checked ? 'create-debt' : 'settle-debt',
+      label: entry.label,
+      saleCount: entry.saleIds.length,
+      debtCount: entry.debtIds.length,
+    });
     forkJoin(requests).subscribe({
       next: () => {
         this.notice.set(checked ? 'Dette creee.' : 'Dette reglee.');
+        this.logger.info('sessions-ui', 'Debt state updated from session detail', {
+          action: checked ? 'create-debt' : 'settle-debt',
+          requestCount: requests.length,
+        });
         this.refreshAfterDebtChange();
       },
       error: (error: HttpErrorResponse) => {
         (event.target as HTMLInputElement).checked = entry.openDebt;
+        this.logger.warn('sessions-ui', 'Debt state update failed from session detail', {
+          action: checked ? 'create-debt' : 'settle-debt',
+          requestCount: requests.length,
+          error,
+        });
         this.error.set(this.resolveHttpError(error, checked ? 'Creation de dette impossible' : 'Reglement de dette impossible'));
       },
     });
@@ -1106,14 +1171,26 @@ export class SessionsPageComponent {
   }
 
   private fetchCustomerDetails(customerId: string): void {
+    this.logger.debug('sessions-ui', 'Loading customer detail for session drawer', { customerId });
     this.customersApi.get(customerId).subscribe({
       next: (details) => {
         this.sessionDetails.set({
           ...this.sessionDetails(),
           [customerId]: details,
         });
+        const entries = this.todayEntries(details);
+        this.logger.debug('sessions-ui', 'Session detail normalized for day entries', {
+          customerId,
+          purchaseCount: details.purchases.length,
+          debtCount: details.debts.length,
+          normalizedEntryCount: entries.length,
+          openDebtCount: entries.filter((entry) => entry.openDebt).length,
+        });
       },
-      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Chargement du detail client impossible')),
+      error: (error: HttpErrorResponse) => {
+        this.logger.warn('sessions-ui', 'Customer detail loading failed for session drawer', { customerId, error });
+        this.error.set(this.resolveHttpError(error, 'Chargement du detail client impossible'));
+      },
     });
   }
 

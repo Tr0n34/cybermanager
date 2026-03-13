@@ -20,3 +20,8 @@ spring:
 cybermanager:
   security:
     jwt-secret: ${CM_JWT_SECRET:01234567890123456789012345678901}
+
+logging:
+  level:
+    com.cybermanager: ${CM_LOG_LEVEL:INFO}
+    com.cybermanager.api.config.ApiRequestLoggingFilter: ${CM_HTTP_LOG_LEVEL:DEBUG}

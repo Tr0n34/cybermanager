@@ -70,7 +70,7 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
             <tbody>
               <tr *ngFor="let item of paginatedCustomers()" [class.active]="selected()?.customerId === item.customerId">
                 <td><strong>{{ item.name }}</strong></td>
-                <td>{{ item.type === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</td>
+                <td><span [class]="customerTypeChipClass(item.type)">{{ customerTypeLabel(item.type) }}</span></td>
                 <td>{{ item.type === 'SUBSCRIBER' ? 'Actif' : 'Aucun' }}</td>
                 <td>{{ item.remainingMinutes }} min</td>
                 <td><button type="button" (click)="open(item.customerId)">Ouvrir</button></td>
@@ -121,7 +121,7 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
                   <input formControlName="name" />
                 </label>
                 <div class="facts">
-                  <p><strong>Type :</strong> {{ customer.type === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</p>
+                  <p><strong>Type :</strong> <span [class]="customerTypeChipClass(customer.type)">{{ customerTypeLabel(customer.type) }}</span></p>
                   <p><strong>Abonnements :</strong> {{ customer.currentSubscriptionLabel ?? 'Aucun' }}</p>
                   <p *ngIf="customer.type === 'SUBSCRIBER'" class="muted">Les abonnements se cumulent.</p>
                   <p><strong>Credit disponible :</strong> {{ customer.remainingMinutes }} min</p>
@@ -494,5 +494,13 @@ export class CustomersPageComponent {
       .filter((purchase) => !purchase.openDebt)
       .filter((purchase) => purchase.type === 'SUBSCRIPTION' || purchase.type === 'PRODUCTS')
       .reduce((total, purchase) => total + purchase.totalAmount, 0);
+  }
+
+  customerTypeLabel(type: string): string {
+    return type === 'SUBSCRIBER' ? 'Abonne' : 'Client';
+  }
+
+  customerTypeChipClass(type: string): string {
+    return type === 'SUBSCRIBER' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
   }
 }

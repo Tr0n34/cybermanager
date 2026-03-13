@@ -27,6 +27,8 @@ Permettre la creation, la consultation, la modification, l'activation et la desa
 - ajout de la suppression produit
 - refonte de l'ecran en mode liste compacte + panneau lateral refermable
 - filtres instantanes par nom, categorie et statut avec pagination et taille de page configurable
+- normalisation recente de l'ecran CRUD avec bouton `Filtres`, panneau `filters-grid collapsible` anime et bouton principal `Creer un nouveau produit`
+- suppression du bouton `Nouveau` du panneau de droite au profit d'une creation centralisee en haut de page
 
 ## Bounded context
 
@@ -107,13 +109,15 @@ Permettre la creation, la consultation, la modification, l'activation et la desa
 - les filtres nom, categorie et statut filtrent la liste immediatement a chaque saisie
 - la taille de page est configurable et la pagination reste dans l'ecran
 - le tableau catalogue reste compact avec badges de statut visuellement plus lisibles
-- le bouton "nouveau produit" ouvre un panneau de droite vide avec animation puis disparait tant que le panneau reste ouvert
+- le bouton "Creer un nouveau produit" reste visible en haut de page a cote du bouton `Filtres`
+- le panneau des filtres s'ouvre et se referme avec une animation legere coherente avec les autres CRUD frontend
 - le clic sur une ligne ou une action d'edition ouvre le panneau en mode modification
 - apres creation, modification, activation, desactivation ou suppression, la liste est rechargee et le panneau peut se refermer
 - les erreurs de chargement ou de sauvegarde sont visibles dans l'ecran
 - la page combine le tableau catalogue et le formulaire produit dans le meme flux utilisateur
 - le badge de statut actif / inactif doit rester visuellement distinct et lisible
 - les dates et heures visibles dans l'ecran suivent le format `JJ/MM/AAAA HH:mm`
+- le panneau de droite regroupe uniquement les actions d'edition utiles a l'element courant
 
 ## Criteres d'acceptation
 

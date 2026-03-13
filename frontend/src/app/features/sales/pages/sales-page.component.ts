@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -12,7 +12,7 @@ import type { Product } from '../../products/models/product.models';
 import { ProductsApiService } from '../../products/services/products-api.service';
 import type { SubscriptionOffer } from '../../subscriptions/models/subscription-offer.models';
 import { SubscriptionOffersApiService } from '../../subscriptions/services/subscription-offers-api.service';
-import type { ConnectionPricingTier, Sale } from '../models/sales.models';
+import type { Sale } from '../models/sales.models';
 import { SalesApiService } from '../services/sales-api.service';
 
 type SalesPanelMode = 'product' | 'subscription' | 'connection';
@@ -26,23 +26,42 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
         <div>
           <p class="eyebrow">Flux ventes</p>
           <h2>Ventes et tarification</h2>
-          <p class="lede">Selectionne un client ou un abonne par autocompletion, puis enregistre une vente produit, abonnement ou temps.</p>
-        </div>
-
-        <div class="hero-actions">
-          <a routerLink="/sales/pricing" class="link-button secondary">Configurer les tarifs</a>
-          <button *ngIf="!isPanelOpen()" type="button" class="secondary" (click)="openPanel('product')">Nouvelle vente</button>
+          <div class="hero-actions">
+            <button type="button" class="ghost filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
+              <span class="filter-icon" aria-hidden="true"></span>
+              <span>Filtres</span>
+            </button>
+            <a routerLink="/sales/pricing" class="link-button secondary">Configurer les tarifs</a>
+            <button type="button" class="secondary" (click)="openPanel('product')">Nouvelle vente</button>
+          </div>
         </div>
       </header>
 
       <p class="error" *ngIf="error()">{{ error() }}</p>
+
+      <div class="filters-grid collapsible" [class.is-collapsed]="!showFilters()" [formGroup]="filters">
+        <label class="field">
+          <span>Type</span>
+          <select formControlName="type">
+            <option value="">Tous les types</option>
+            <option value="PRODUCTS">Produits</option>
+            <option value="CONNECTION_TIME">Temps de connexion</option>
+            <option value="SUBSCRIPTION">Abonnement</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Article</span>
+          <input formControlName="article" placeholder="Nom de l'article" />
+        </label>
+      </div>
 
       <div class="grid" [class.panel-open]="isPanelOpen()">
         <article class="panel list-panel">
           <div class="panel-header">
             <div>
               <h3>Ventes du jour</h3>
-              <p>{{ sales().length }} vente(s)</p>
+              <p>{{ filteredSales().length }} vente(s)</p>
             </div>
           </div>
 
@@ -56,33 +75,18 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let sale of sales()">
+              <tr *ngFor="let sale of filteredSales()">
                 <td>{{ sale.soldAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                <td>{{ sale.type }}</td>
+                <td>{{ saleTypeLabel(sale.type) }}</td>
                 <td class="muted">{{ sale.lines[0]?.label ?? 'Vente' }}</td>
                 <td>{{ sale.totalAmount | number:'1.2-2' }} EUR</td>
               </tr>
-              <tr *ngIf="sales().length === 0">
+              <tr *ngIf="filteredSales().length === 0">
                 <td colspan="4" class="empty">Aucune vente enregistree aujourd'hui.</td>
               </tr>
             </tbody>
           </table>
 
-          <section class="pricing-summary">
-            <div class="pricing-header">
-              <div>
-                <h3>Tarifs de connexion</h3>
-                <p>La grille active s'applique aux ventes de temps et aux sessions journalieres.</p>
-              </div>
-            </div>
-
-            <ul class="pricing-list">
-              <li *ngFor="let tier of pricingTiers()">
-                <strong>{{ formatDuration(tier) }}</strong>
-                <span>{{ tier.price | number:'1.2-2' }} EUR</span>
-              </li>
-            </ul>
-          </section>
         </article>
 
         <article class="panel side-panel stack" [class.open]="isPanelOpen()" [attr.aria-hidden]="!isPanelOpen()">
@@ -107,14 +111,14 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
 
           <div class="selected-customer" *ngIf="selectedCustomer() as customer">
             <strong>{{ customer.name }}</strong>
-            <span>{{ customer.type === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</span>
+            <span [class]="customerTypeChipClass(customer.type)">{{ customerTypeLabel(customer.type) }}</span>
             <button type="button" class="ghost" (click)="clearSelectedCustomer()">Changer</button>
           </div>
 
           <div class="suggestions" *ngIf="customerSuggestions().length > 0 && !selectedCustomer()">
             <button type="button" class="suggestion" *ngFor="let customer of customerSuggestions()" (click)="selectCustomer(customer)">
               <strong>{{ customer.name }}</strong>
-              <span>{{ customer.type === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</span>
+              <span [class]="customerTypeChipClass(customer.type)">{{ customerTypeLabel(customer.type) }}</span>
             </button>
           </div>
 
@@ -170,11 +174,14 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
   `,
   styles: `
     .page, .stack { display: grid; gap: 1rem; }
-    .hero { display: flex; justify-content: space-between; gap: 1rem; align-items: start; flex-wrap: wrap; }
+    .hero { display: grid; gap: 1rem; }
     .hero h2 { margin: 0.35rem 0 0.5rem; }
     .eyebrow { margin: 0; text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.72rem; color: #9a3412; }
     .lede { margin: 0; color: #475569; max-width: 52rem; }
-    .hero-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .hero-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: flex-start; align-items: center; }
+    .filters-grid { grid-template-columns: repeat(2, max-content); justify-content: start; align-items: end; }
+    .filters-grid .field { min-width: 0; }
+    .filters-grid .field input, .filters-grid .field select { width: auto; min-width: 11rem; max-width: 14rem; border-radius: 999px; background: #fff; padding: 0.62rem 0.82rem !important; }
     .grid { display: grid; grid-template-columns: minmax(0, 1fr) 0fr; gap: 1rem; align-items: start; transition: grid-template-columns 220ms ease-out; }
     .grid.panel-open { grid-template-columns: minmax(0, 1.35fr) minmax(24rem, 0.95fr); }
     .panel { background: #fff; padding: 1.25rem; border-radius: 1.25rem; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); }
@@ -187,11 +194,6 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
     .table th { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
     .muted { color: #64748b; }
     .empty { text-align: center; color: #64748b; }
-    .pricing-summary { display: grid; gap: 0.75rem; padding: 1rem; border-radius: 1rem; background: #f8fafc; }
-    .pricing-header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
-    .pricing-header p { margin: 0.25rem 0 0; color: #475569; }
-    .pricing-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
-    .pricing-list li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.75rem 1rem; background: #fff; border-radius: 0.85rem; border: 1px solid #e2e8f0; }
     .mode-switches { display: flex; gap: 0.75rem; flex-wrap: wrap; }
     .field { display: grid; gap: 0.45rem; }
     .field span { font-size: 0.86rem; font-weight: 700; color: #334155; }
@@ -200,9 +202,9 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
     input, select { padding: 0.85rem 0.95rem; border-radius: 0.85rem; border: 1px solid #cbd5e1; font: inherit; background: #fff; }
     .suggestions { display: grid; gap: 0.5rem; }
     .suggestion { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1rem; border-radius: 0.9rem; background: #fff7ed; color: #111827; border: 1px solid #fed7aa; }
-    .suggestion span { color: #9a3412; }
+    .suggestion .type-chip { box-shadow: none; }
     .selected-customer { display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: 0.95rem 1rem; border-radius: 1rem; background: #eff6ff; border: 1px solid #bfdbfe; }
-    .selected-customer span { color: #1d4ed8; font-weight: 600; }
+    .selected-customer .type-chip { box-shadow: none; }
     .side-panel {
       overflow: hidden;
       opacity: 0;
@@ -226,6 +228,7 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
     }
     .error { margin: 0; color: #991b1b; font-weight: 700; }
     @media (max-width: 1100px) {
+      .filters-grid { grid-template-columns: 1fr; }
       .grid, .grid.panel-open { grid-template-columns: 1fr; }
       .side-panel, .side-panel.open { max-width: none; padding-inline: 1.25rem; opacity: 1; transform: none; }
       .side-panel:not(.open) { display: none; }
@@ -242,23 +245,41 @@ export class SalesPageComponent {
   readonly products = signal<Product[]>([]);
   readonly offers = signal<SubscriptionOffer[]>([]);
   readonly sales = signal<Sale[]>([]);
-  readonly pricingTiers = signal<ConnectionPricingTier[]>([]);
   readonly customerSuggestions = signal<Customer[]>([]);
   readonly selectedCustomer = signal<Customer | null>(null);
   readonly panelMode = signal<SalesPanelMode>('product');
   readonly isPanelOpen = signal(false);
+  readonly showFilters = signal(false);
   readonly error = signal('');
+  readonly filters = this.fb.nonNullable.group({ type: [''], article: [''] });
+  readonly filterState = signal(this.filters.getRawValue());
 
   readonly customerSearchForm = this.fb.nonNullable.group({ term: [''] });
   readonly productSaleForm = this.fb.nonNullable.group({ productId: ['', Validators.required], quantity: [1, [Validators.required, Validators.min(1)]], createDebt: [false] });
   readonly subscriptionSaleForm = this.fb.nonNullable.group({ subscriptionOfferId: ['', Validators.required], createDebt: [false] });
   readonly connectionSaleForm = this.fb.nonNullable.group({ minutes: [60, [Validators.required, Validators.min(1)]], createDebt: [false] });
+  readonly filteredSales = computed(() => {
+    const { type, article } = this.filterState();
+    const normalizedArticle = article.trim().toLocaleLowerCase();
+
+    return this.sales().filter((sale) => {
+      const matchesType = !type || sale.type === type;
+      const matchesArticle = !normalizedArticle
+        || sale.lines.some((line) => line.label.toLocaleLowerCase().includes(normalizedArticle));
+      return matchesType && matchesArticle;
+    });
+  });
 
   constructor() {
     this.productsApi.search('', 'ACTIVE', '').subscribe((value) => this.products.set(value));
     this.offersApi.search('', 'ACTIVE').subscribe((value) => this.offers.set(value));
     this.reload();
-    this.salesApi.pricing().subscribe((value) => this.pricingTiers.set(value.tiers));
+    this.filters.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
+      this.filterState.set({
+        type: value.type ?? '',
+        article: value.article ?? '',
+      });
+    });
 
     this.customerSearchForm.controls.term.valueChanges.pipe(
       map((value) => value.trim()),
@@ -371,20 +392,30 @@ export class SalesPageComponent {
     });
   }
 
-  formatDuration(tier: ConnectionPricingTier): string {
-    const parts: string[] = [];
-    if (tier.hours > 0) {
-      parts.push(`${tier.hours} h`);
-    }
-    if (tier.minutes > 0) {
-      parts.push(`${tier.minutes} min`);
-    }
-    return parts.join(' ') || `${tier.durationMinutes} min`;
-  }
-
   private resetForms(): void {
     this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
     this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
     this.connectionSaleForm.reset({ minutes: 60, createDebt: false });
+  }
+
+  saleTypeLabel(type: string): string {
+    switch (type) {
+      case 'PRODUCTS':
+        return 'Produits';
+      case 'CONNECTION_TIME':
+        return 'Temps de connexion';
+      case 'SUBSCRIPTION':
+        return 'Abonnement';
+      default:
+        return type;
+    }
+  }
+
+  customerTypeLabel(type: string): string {
+    return type === 'SUBSCRIBER' ? 'Abonne' : 'Client';
+  }
+
+  customerTypeChipClass(type: string): string {
+    return type === 'SUBSCRIBER' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
   }
 }

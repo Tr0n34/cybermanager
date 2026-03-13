@@ -25,7 +25,7 @@ import { DebtsApiService } from '../services/debts-api.service';
           <div class="panel-header">
             <div>
               <h3>{{ customer.customerName }}</h3>
-              <p>{{ customer.customerType === 'SUBSCRIBER' ? 'Abonne' : 'Client' }}</p>
+              <p><span [class]="customerTypeChipClass(customer.customerType)">{{ customerTypeLabel(customer.customerType) }}</span></p>
             </div>
             <strong class="debt-total">{{ customer.totalOpenDebt | number:'1.2-2' }} EUR</strong>
           </div>
@@ -96,5 +96,13 @@ export class DebtsPageComponent {
       next: () => this.load(),
       error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Reglement impossible'),
     });
+  }
+
+  customerTypeLabel(type: string): string {
+    return type === 'SUBSCRIBER' ? 'Abonne' : 'Client';
+  }
+
+  customerTypeChipClass(type: string): string {
+    return type === 'SUBSCRIBER' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
   }
 }

@@ -166,6 +166,22 @@ Chaque feature contient :
 - `routes` si necessaire
 - etat local si necessaire
 
+### Structuration frontend attendue
+
+Pour toute nouvelle page Angular de gestion ou de CRUD :
+- la page principale vit dans `features/<feature>/pages`
+- les sous-composants reutilisables vivent dans `features/<feature>/components`
+- les appels HTTP restent dans `features/<feature>/services`
+- les interfaces et types restent dans `features/<feature>/models`
+- les styles substantiels doivent vivre dans un fichier `*.component.css` dedie plutot que dans un gros bloc inline
+- les listes CRUD doivent privilegier un schema stable :
+  - barre d'actions haute avec bouton `Filtres` et action principale `Creer un nouvel ...`
+  - bloc `filters-grid collapsible` avec animation legere d'ouverture / fermeture
+  - champs de filtre compacts et alignes a gauche, sans largeur pleine si le contenu attendu est court
+  - liste a gauche et panneau de creation / edition a droite si le flux s'y prete
+  - pas de bouton `Nouveau` duplique dans la colonne de droite si l'action de creation principale est deja visible en haut
+  - si un panneau secondaire sert seulement a de l'ajout ponctuel, expliciter s'il doit etre ferme par defaut
+
 ## Bounded contexts
 
 ### auth
@@ -206,6 +222,13 @@ Historique journalier et consultation des journees passees.
 - pour les formulaires reactifs, ne pas attendre de reactivite d'un `computed` base directement sur `form.getRawValue()`
 - preferer `signals`, `valueChanges` ou un state local explicite pour les filtres instantanes
 - toute page de configuration doit normaliser les valeurs avant sauvegarde et rendre visible la confirmation d'enregistrement
+- pour les ecrans CRUD frontend, normaliser les filtres dans un bloc `filters-grid collapsible` pilote par un bouton `Filtres` avec icone
+- l'ouverture et la fermeture des filtres ou panneaux secondaires doivent etre fluides, rapides et discretes, jamais abruptes
+- les champs de filtre doivent rester compacts, alignes a gauche et calibres selon leur contenu fonctionnel
+- l'action principale `Creer un nouvel ...` ou `Creer une nouvelle ...` doit etre visible en haut de page a cote du bouton `Filtres`
+- ne pas dupliquer un bouton `Nouveau` dans la colonne de droite si la creation principale existe deja dans l'entete
+- lorsqu'un panneau secondaire sert seulement a de l'ajout ponctuel, il peut etre ferme par defaut pour reduire la charge visuelle
+- toute modale frontend de calcul ou de simulation doit reproduire la logique metier backend de reference ou expliciter si elle n'est qu'indicative
 
 ## Workflow attendu pour Codex
 

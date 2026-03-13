@@ -22,6 +22,9 @@ Format recommande :
 - F-014-operational-monitoring-financial-summary.md
 - F-015-historical-reporting-by-period.md
 - F-016-session-counter-operations.md
+- F-017-frontend-observability-and-debug-logging.md
+- F-018-backend-observability-and-debug-logging.md
+- F-019-frontend-crud-filter-and-panel-standardization.md
 
 ## Cycle de vie d'une feature
 

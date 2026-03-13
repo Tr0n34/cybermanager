@@ -18,32 +18,19 @@ import { UsersApiService } from '../services/users-api.service';
           <p class="eyebrow">Bounded context users</p>
           <h2>Gestion des utilisateurs</h2>
         </div>
-
-        <div class="filters" [formGroup]="filters">
-          <input type="search" formControlName="term" placeholder="Filtrer par nom" />
-
-          <select formControlName="role">
-            <option value="">Tous les roles</option>
-            <option *ngFor="let role of roleOptions" [value]="role">{{ role }}</option>
-          </select>
-
-          <select formControlName="status">
-            <option value="">Tous les statuts</option>
-            <option value="ACTIVE">Actifs</option>
-            <option value="DISABLED">Desactives</option>
-          </select>
-
-          <select formControlName="pageSize">
-            <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }} / page</option>
-          </select>
-
-          <button *ngIf="!isPanelOpen()" type="button" class="secondary" (click)="openCreatePanel()">Nouvel utilisateur</button>
-        </div>
       </header>
 
       <p class="error" *ngIf="error()">{{ error() }}</p>
 
       <div class="toolbar">
+        <div class="section-title-group">
+          <button type="button" class="ghost filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
+            <span class="filter-icon" aria-hidden="true"></span>
+            <span>Filtres</span>
+          </button>
+          <button type="button" (click)="openCreatePanel()">Creer un nouvel utilisateur</button>
+        </div>
+
         <p class="summary">
           {{ filteredUsers().length }} utilisateur{{ filteredUsers().length > 1 ? 's' : '' }}
           <span *ngIf="filteredUsers().length !== users().length">sur {{ users().length }}</span>
@@ -54,6 +41,37 @@ import { UsersApiService } from '../services/users-api.service';
           <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
           <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
         </div>
+      </div>
+
+      <div class="filters-grid collapsible" [class.is-collapsed]="!showFilters()" [formGroup]="filters">
+        <label class="field">
+          <span>Recherche par nom</span>
+          <input type="search" formControlName="term" placeholder="Nom ou prenom" />
+        </label>
+
+        <label class="field">
+          <span>Role</span>
+          <select formControlName="role">
+            <option value="">Tous les roles</option>
+            <option *ngFor="let role of roleOptions" [value]="role">{{ role }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Statut</span>
+          <select formControlName="status">
+            <option value="">Tous les statuts</option>
+            <option value="ACTIVE">Actifs</option>
+            <option value="DISABLED">Desactives</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Taille de page</span>
+          <select formControlName="pageSize">
+            <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }} / page</option>
+          </select>
+        </label>
       </div>
 
       <div class="grid" [class.panel-open]="isPanelOpen()">
@@ -79,13 +97,9 @@ import { UsersApiService } from '../services/users-api.service';
             [mode]="panelMode()"
             [initialUser]="selectedUser()"
             (saved)="saveUser($event)"
+            (statusToggled)="onStatusToggled()"
+            (deleted)="onDeleteRequested()"
           />
-
-          <div class="actions" *ngIf="selectedUser() as user">
-            <button type="button" (click)="toggleStatus(user)">{{ user.status === 'ACTIVE' ? 'Desactiver' : 'Activer' }}</button>
-            <button type="button" class="danger" (click)="deleteUser(user)">Supprimer</button>
-            <button type="button" class="secondary" (click)="openCreatePanel()">Nouveau</button>
-          </div>
         </article>
       </div>
     </section>
@@ -94,11 +108,18 @@ import { UsersApiService } from '../services/users-api.service';
     .page, .panel { display: grid; gap: 1rem; }
     .hero { display: grid; gap: 1rem; }
     .eyebrow { margin: 0; color: #ff7b00; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.72rem; }
-    .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
     input, select { border: 1px solid #cbd5e1; border-radius: 0.85rem; padding: 0.8rem 0.9rem; font: inherit; background: #fff; }
     .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
     .summary { margin: 0; color: #334155; font-weight: 600; }
     .pager { display: inline-flex; align-items: center; gap: 0.75rem; color: #475569; }
+    .section-title-group { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .filters-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .filters-grid .field { display: grid; gap: 0.28rem; align-content: start; }
+    .filters-grid .field span { font-size: 0.78rem; font-weight: 700; color: #334155; line-height: 1.1; }
+    .filters-grid .field input, .filters-grid .field select { width: 100%; border-radius: 999px; background: #fff; }
+    .filter-toggle { padding: 0.5rem 0.78rem !important; border-radius: 999px !important; }
+    .filter-icon { position: relative; display: inline-block; width: 0.88rem; height: 0.7rem; }
+    .filter-icon::before { content: ""; position: absolute; left: 0; right: 0; top: 0.02rem; height: 0.12rem; border-radius: 999px; background: currentColor; box-shadow: 0 0.24rem 0 currentColor, 0 0.48rem 0 currentColor; }
     .grid { display: grid; grid-template-columns: minmax(0, 1fr) 0fr; gap: 1.5rem; align-items: start; transition: grid-template-columns 280ms ease; }
     .grid.panel-open { grid-template-columns: minmax(0, 1.35fr) minmax(22rem, 0.9fr); }
     .panel { background: rgba(255,255,255,0.84); border-radius: 1.2rem; padding: 1.1rem; }
@@ -126,7 +147,6 @@ import { UsersApiService } from '../services/users-api.service';
       max-width: 100%;
       padding-inline: 1.1rem;
     }
-    .actions { display: flex; gap: 0.75rem; }
     button { border: 0; border-radius: 999px; padding: 0.8rem 1rem; background: #14213d; color: #fff; font-weight: 700; cursor: pointer; }
     .secondary { background: #64748b; }
     .ghost, .icon-button { background: #e2e8f0; color: #0f172a; }
@@ -134,6 +154,7 @@ import { UsersApiService } from '../services/users-api.service';
     .error { margin: 0; color: #991b1b; font-weight: 700; }
 
     @media (max-width: 1000px) {
+      .filters-grid { grid-template-columns: 1fr; }
       .grid, .grid.panel-open { grid-template-columns: 1fr; }
       .side-panel, .side-panel.open { max-width: none; padding-inline: 1.1rem; opacity: 1; transform: none; }
       .side-panel:not(.open) { display: none; }
@@ -156,6 +177,7 @@ export class UsersPageComponent {
   readonly selectedUser = signal<UserResponse | null>(null);
   readonly panelMode = signal<'create' | 'edit'>('create');
   readonly isPanelOpen = signal(false);
+  readonly showFilters = signal(false);
   readonly page = signal(1);
   readonly error = signal('');
   readonly filterState = signal(this.filters.getRawValue());
@@ -276,6 +298,22 @@ export class UsersPageComponent {
       },
       error: (error: HttpErrorResponse) => this.error.set(this.resolveError(error, 'Suppression impossible')),
     });
+  }
+
+  onStatusToggled(): void {
+    const user = this.selectedUser();
+    if (!user) {
+      return;
+    }
+    this.toggleStatus(user);
+  }
+
+  onDeleteRequested(): void {
+    const user = this.selectedUser();
+    if (!user) {
+      return;
+    }
+    this.deleteUser(user);
   }
 
   private resolveError(error: HttpErrorResponse, fallback: string): string {

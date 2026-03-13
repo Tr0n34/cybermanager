@@ -34,7 +34,28 @@ To build the project run:
 ng build
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+This will compile your project and store the build artifacts in `frontend/dist/cybermanager-frontend/`.
+
+With the Angular 21 application builder, the browser assets are generated in:
+
+```bash
+frontend/dist/cybermanager-frontend/browser
+```
+
+If you want to preview the production build with `serve`, use one of these commands:
+
+```bash
+cd frontend
+npm run preview
+```
+
+or from the repository root:
+
+```bash
+serve frontend/dist/cybermanager-frontend/browser -s
+```
+
+If you run `serve dist/cybermanager-frontend/browser` from the repository root, you will get a `404` because that path does not exist there. In that case, the Angular app never boots, so no frontend logging can appear in the browser.
 
 ## Running unit tests
 

@@ -8,6 +8,8 @@ import com.cybermanager.auth.application.views.AuthenticationResultView;
 import com.cybermanager.auth.domain.model.EmailAddress;
 import com.cybermanager.auth.domain.model.UserAccount;
 import com.cybermanager.auth.domain.port.UserAuthenticationRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +18,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 public class AuthenticateUserService implements AuthenticateUserUseCase {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticateUserService.class);
+
     private final UserAuthenticationRepository userAuthenticationRepository;
     private final PasswordVerifier passwordVerifier;
     private final TokenIssuer tokenIssuer;
@@ -32,16 +36,24 @@ public class AuthenticateUserService implements AuthenticateUserUseCase {
 
     @Override
     public AuthenticationResultView execute(AuthenticateUserCommand command) {
+        LOGGER.info("Authentication attempt email={}", command.email());
         UserAccount user = userAuthenticationRepository.findByEmail(new EmailAddress(command.email()))
-                .orElseThrow(() -> new AuthenticationFailedException("Invalid credentials"));
+                .orElseThrow(() -> {
+                    LOGGER.warn("Authentication failed because user was not found email={}", command.email());
+                    return new AuthenticationFailedException("Invalid credentials");
+                });
 
         if (!user.isActive()) {
+            LOGGER.warn("Authentication failed because user is disabled userId={} email={}", user.id().value(), user.email().value());
             throw new AuthenticationFailedException("User is disabled");
         }
 
         if (!passwordVerifier.matches(command.password(), user.passwordHash().value())) {
+            LOGGER.warn("Authentication failed because password verification did not match userId={} email={}", user.id().value(), user.email().value());
             throw new AuthenticationFailedException("Invalid credentials");
         }
+
+        LOGGER.info("Authentication succeeded userId={} email={} roles={}", user.id().value(), user.email().value(), user.roles().size());
 
         return new AuthenticationResultView(
                 tokenIssuer.issue(user),
