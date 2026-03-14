@@ -49,7 +49,8 @@ public class SalesController {
     @PostMapping("/api/sales/subscriptions")
     public ResponseEntity<SaleResponse> subscriptionSale(@RequestHeader("Authorization") String authorization, @RequestBody SubscriptionSaleRequest request) {
         var actor = ApiSupport.actor(authorization, tokenReader);
-        return ResponseEntity.ok(toResponse(service.execute(new CreateSubscriptionSaleCommand(actor.email(), actor.roles(), request.customerId(), request.sessionId(), request.subscriptionOfferId(), request.createDebt()))));
+        int quantity = request.quantity() == null || request.quantity() < 1 ? 1 : request.quantity();
+        return ResponseEntity.ok(toResponse(service.execute(new CreateSubscriptionSaleCommand(actor.email(), actor.roles(), request.customerId(), request.sessionId(), request.subscriptionOfferId(), quantity, request.createDebt()))));
     }
 
     @DeleteMapping("/api/sales/{id}/subscription-session")

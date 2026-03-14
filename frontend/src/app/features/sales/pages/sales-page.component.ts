@@ -147,6 +147,10 @@ type SalesPanelMode = 'product' | 'subscription';
                 <option *ngFor="let item of offers()" [value]="item.offerId">{{ item.name }} - {{ item.includedMinutes }} min</option>
               </select>
             </label>
+            <label class="field">
+              <span>Quantite</span>
+              <input type="number" min="1" formControlName="quantity" />
+            </label>
             <p class="helper">Les abonnements se cumulent sur le credit existant.</p>
             <label class="checkbox">
               <input type="checkbox" formControlName="createDebt" />
@@ -242,7 +246,7 @@ export class SalesPageComponent {
 
   readonly customerSearchForm = this.fb.nonNullable.group({ term: [''] });
   readonly productSaleForm = this.fb.nonNullable.group({ productId: ['', Validators.required], quantity: [1, [Validators.required, Validators.min(1)]], createDebt: [false] });
-  readonly subscriptionSaleForm = this.fb.nonNullable.group({ subscriptionOfferId: ['', Validators.required], createDebt: [false] });
+  readonly subscriptionSaleForm = this.fb.nonNullable.group({ subscriptionOfferId: ['', Validators.required], quantity: [1, [Validators.required, Validators.min(1)]], createDebt: [false] });
   readonly filteredSales = computed(() => {
     const { type, article } = this.filterState();
     const normalizedArticle = article.trim().toLocaleLowerCase();
@@ -283,6 +287,9 @@ export class SalesPageComponent {
 
   openPanel(mode: SalesPanelMode): void {
     this.panelMode.set(mode);
+    if (mode === 'subscription') {
+      this.offersApi.search('', 'ACTIVE').subscribe((value) => this.offers.set(value));
+    }
     this.isPanelOpen.set(true);
     this.error.set('');
   }
@@ -344,12 +351,12 @@ export class SalesPageComponent {
 
   sellSubscription(): void {
     const customer = this.selectedCustomer();
-    const { subscriptionOfferId, createDebt } = this.subscriptionSaleForm.getRawValue();
+    const { subscriptionOfferId, quantity, createDebt } = this.subscriptionSaleForm.getRawValue();
     if (!customer) {
       this.error.set('Selectionne un client ou un abonne.');
       return;
     }
-    this.salesApi.subscriptionSale({ customerId: customer.customerId, subscriptionOfferId, createDebt }).subscribe({
+    this.salesApi.subscriptionSale({ customerId: customer.customerId, subscriptionOfferId, quantity, createDebt }).subscribe({
       next: () => {
         this.closePanel();
         this.reload();
@@ -360,7 +367,7 @@ export class SalesPageComponent {
 
   private resetForms(): void {
     this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
-    this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
+    this.subscriptionSaleForm.reset({ subscriptionOfferId: '', quantity: 1, createDebt: false });
   }
 
   saleTypeLabel(type: string): string {

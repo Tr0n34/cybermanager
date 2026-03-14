@@ -3,5 +3,13 @@ package com.cybermanager.application.commands.sales;
 import java.util.Set;
 import java.util.UUID;
 
-public record CreateSubscriptionSaleCommand(String actorEmail, Set<String> actorRoles, UUID customerId, UUID sessionId, UUID subscriptionOfferId, boolean createDebt) {
+public record CreateSubscriptionSaleCommand(
+        String actorEmail,
+        Set<String> actorRoles,
+        UUID customerId,
+        UUID sessionId,
+        UUID subscriptionOfferId,
+        int quantity,
+        boolean createDebt
+) {
 }

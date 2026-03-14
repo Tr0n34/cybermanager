@@ -117,6 +117,7 @@ Permettre de definir des offres d'abonnement avec un prix et une duree de connex
 - les messages d'erreur restent visibles dans la page
 - la duree incluse est saisie et affichee en minutes pour rester coherente avec l'API
 - les ecrans qui vendent ou resumment un abonnement doivent rappeler que les abonnements se cumulent
+- les ecrans qui consomment les offres actives dans des modales ou panneaux operationnels doivent relire ces offres a l'ouverture pour prendre en compte les modifications recentes
 
 ## Criteres d'acceptation
 

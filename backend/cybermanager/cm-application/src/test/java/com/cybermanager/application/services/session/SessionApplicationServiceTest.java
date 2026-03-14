@@ -424,7 +424,9 @@ class SessionApplicationServiceTest {
 
         assertEquals(new java.math.BigDecimal("0.00"), result.calculatedPrice());
         assertEquals(new java.math.BigDecimal("7.50"), result.totalPaidAmount());
+        assertEquals(30, result.remainingMinutes());
         verify(debtRepository, never()).save(any(DebtRecord.class));
+        verify(customerRepository).save(argThat(saved -> saved.remainingMinutes() == 30));
     }
 
     @Test

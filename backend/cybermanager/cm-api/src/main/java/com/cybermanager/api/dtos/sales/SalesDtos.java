@@ -11,7 +11,7 @@ public final class SalesDtos {
 
     public record ProductSaleLineRequest(UUID productId, int quantity) {}
     public record ProductSaleRequest(UUID customerId, UUID sessionId, List<ProductSaleLineRequest> lines, boolean createDebt) {}
-    public record SubscriptionSaleRequest(UUID customerId, UUID sessionId, UUID subscriptionOfferId, boolean createDebt) {}
+    public record SubscriptionSaleRequest(UUID customerId, UUID sessionId, UUID subscriptionOfferId, Integer quantity, boolean createDebt) {}
     public record ConnectionTimeSaleRequest(UUID customerId, UUID sessionId, int minutes, boolean createDebt) {}
     public record PricingTierRequest(int hours, int minutes, BigDecimal price) {}
     public record PricingRequest(List<PricingTierRequest> tiers) {}

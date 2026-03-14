@@ -25,6 +25,7 @@ Format recommande :
 - F-017-frontend-observability-and-debug-logging.md
 - F-018-backend-observability-and-debug-logging.md
 - F-019-frontend-crud-filter-and-panel-standardization.md
+- F-020-session-payment-and-stopped-session-sales.md
 
 ## Cycle de vie d'une feature
 
