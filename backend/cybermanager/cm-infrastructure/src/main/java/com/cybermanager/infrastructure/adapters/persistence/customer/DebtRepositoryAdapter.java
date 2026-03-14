@@ -27,6 +27,7 @@ public class DebtRepositoryAdapter implements DebtRepository {
         entity.id = debtRecord.id().value();
         entity.customerId = debtRecord.customerId().value();
         entity.label = debtRecord.label();
+        entity.comment = debtRecord.comment();
         entity.amount = debtRecord.amount().amount();
         entity.status = debtRecord.status().name();
         entity.createdAt = debtRecord.createdAt();
@@ -37,6 +38,11 @@ public class DebtRepositoryAdapter implements DebtRepository {
     @Override
     public Optional<DebtRecord> findById(DebtId debtId) {
         return repository.findById(debtId.value()).map(this::toDomain);
+    }
+
+    @Override
+    public void deleteById(DebtId debtId) {
+        repository.deleteById(debtId.value());
     }
 
     @Override
@@ -54,6 +60,7 @@ public class DebtRepositoryAdapter implements DebtRepository {
                 new DebtId(entity.id),
                 new CustomerId(entity.customerId),
                 entity.label,
+                entity.comment,
                 new Money(entity.amount),
                 DebtStatus.valueOf(entity.status),
                 entity.createdAt,

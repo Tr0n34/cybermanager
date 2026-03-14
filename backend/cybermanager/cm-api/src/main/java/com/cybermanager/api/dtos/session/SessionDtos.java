@@ -10,7 +10,8 @@ public final class SessionDtos {
     }
 
     public record StartSessionRequest(UUID customerId, String customerName) {}
-    public record StopSessionRequest(boolean paid) {}
+    public record PaySessionRequest(BigDecimal amountPaid, List<UUID> subscriptionOfferIds, boolean createSubscriptionDebt) {}
+    public record RestartSessionsDayResponse(int archivedSessions) {}
 
     public record SessionResponse(
             UUID sessionId,
@@ -18,6 +19,7 @@ public final class SessionDtos {
             String customerName,
             String customerType,
             int remainingMinutes,
+            int displayRemainingMinutes,
             String workstation,
             LocalDateTime startedAt,
             LocalDateTime endedAt,

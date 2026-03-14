@@ -43,24 +43,21 @@ import { ProductsApiService } from '../services/products-api.service';
 
       <div class="filters-grid collapsible" [class.is-collapsed]="!showFilters()" [formGroup]="filters">
         <label class="field">
-          <span>Recherche par nom</span>
-          <input formControlName="term" placeholder="Nom du produit" />
+          <span>Recherche</span>
+          <input formControlName="term" placeholder="Nom ou description" />
         </label>
 
         <label class="field">
           <span>Categorie</span>
-          <select formControlName="category">
-            <option value="">Toutes les categories</option>
-            <option *ngFor="let category of categoryOptions()" [value]="category">{{ category }}</option>
-          </select>
+          <input formControlName="category" list="product-category-options" placeholder="Categorie" />
         </label>
 
         <label class="field">
           <span>Statut</span>
           <select formControlName="status">
             <option value="">Tous les statuts</option>
-            <option value="ACTIVE">Actifs</option>
-            <option value="INACTIVE">Inactifs</option>
+            <option value="ACTIVE">Actif</option>
+            <option value="INACTIVE">Inactif</option>
           </select>
         </label>
 
@@ -72,6 +69,10 @@ import { ProductsApiService } from '../services/products-api.service';
         </label>
       </div>
 
+      <datalist id="product-category-options">
+        <option *ngFor="let category of categoryOptions()" [value]="category"></option>
+      </datalist>
+
       <div class="grid" [class.panel-open]="isPanelOpen()">
         <article class="panel list-panel">
           <div class="panel-header">
@@ -82,6 +83,7 @@ import { ProductsApiService } from '../services/products-api.service';
             <thead>
               <tr>
                 <th>Nom</th>
+                <th>Description</th>
                 <th>Categorie</th>
                 <th>Prix</th>
                 <th>Statut</th>
@@ -90,25 +92,20 @@ import { ProductsApiService } from '../services/products-api.service';
             </thead>
             <tbody>
               <tr *ngFor="let item of paginatedProducts()" [class.active]="selected()?.productId === item.productId">
-                <td>
-                  <strong>{{ item.name }}</strong>
-                </td>
+                <td><strong>{{ item.name }}</strong></td>
+                <td class="description-cell">{{ item.description || 'Aucune description' }}</td>
                 <td class="muted">{{ item.category || 'Non renseignee' }}</td>
                 <td>{{ item.price | number:'1.2-2' }} EUR</td>
                 <td>
-                  <span
-                    class="status-badge"
-                    [class.active]="item.status === 'ACTIVE'"
-                    [class.inactive]="item.status === 'INACTIVE'"
-                  >
-                    {{ item.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
+                  <span class="status-badge" [class.active]="item.status === 'ACTIVE'" [class.inactive]="item.status === 'INACTIVE'">
+                    {{ statusLabel(item.status) }}
                   </span>
                 </td>
                 <td><button type="button" (click)="edit(item)">Modifier</button></td>
               </tr>
 
               <tr *ngIf="paginatedProducts().length === 0">
-                <td colspan="5" class="empty">Aucun produit pour ce filtre.</td>
+                <td colspan="6" class="empty">Aucun produit pour ce filtre.</td>
               </tr>
             </tbody>
           </table>
@@ -126,8 +123,13 @@ import { ProductsApiService } from '../services/products-api.service';
           </label>
 
           <label>
+            Description
+            <textarea formControlName="description" rows="3" placeholder="Description courte du produit"></textarea>
+          </label>
+
+          <label>
             Categorie
-            <input formControlName="category" placeholder="Categorie" />
+            <input formControlName="category" list="product-category-options" placeholder="Categorie" />
           </label>
 
           <label>
@@ -150,30 +152,27 @@ import { ProductsApiService } from '../services/products-api.service';
     .page, .form { display: grid; gap: 1rem; }
     .hero { display: grid; gap: 1rem; }
     .eyebrow { margin: 0; color: #ff7b00; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.72rem; }
-    input, select { border: 1px solid #cbd5e1; border-radius: 0.85rem; padding: 0.8rem 0.9rem; font: inherit; background: #fff; }
+    input, select, textarea { border: 1px solid #cbd5e1; border-radius: 0.85rem; padding: 0.7rem 0.82rem; font: inherit; background: #fff; }
+    textarea { resize: vertical; min-height: 5.2rem; }
     .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
     .summary { margin: 0; color: #334155; font-weight: 600; }
     .pager { display: inline-flex; align-items: center; gap: 0.75rem; color: #475569; }
     .section-title-group { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-    .filters-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .filters-grid .field { display: grid; gap: 0.28rem; align-content: start; }
-    .filters-grid .field span { font-size: 0.78rem; font-weight: 700; color: #334155; line-height: 1.1; }
-    .filters-grid .field input, .filters-grid .field select { width: 100%; border-radius: 999px; background: #fff; }
-    .filter-toggle { padding: 0.5rem 0.78rem !important; border-radius: 999px !important; }
-    .filter-icon { position: relative; display: inline-block; width: 0.88rem; height: 0.7rem; }
-    .filter-icon::before { content: ""; position: absolute; left: 0; right: 0; top: 0.02rem; height: 0.12rem; border-radius: 999px; background: currentColor; box-shadow: 0 0.24rem 0 currentColor, 0 0.48rem 0 currentColor; }
-    .grid { display: grid; grid-template-columns: minmax(0, 1fr) 0fr; gap: 1.5rem; align-items: start; transition: grid-template-columns 220ms ease-out; }
-    .grid.panel-open { grid-template-columns: minmax(0, 1.4fr) minmax(22rem, 0.88fr); }
+    .filters-grid { grid-template-columns: repeat(4, max-content); justify-content: start; }
+    .filters-grid .field input, .filters-grid .field select { width: auto; min-width: 10.5rem; max-width: 13rem; border-radius: 999px; background: #fff; padding: 0.62rem 0.8rem !important; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1fr) 0fr; gap: 1.25rem; align-items: start; transition: grid-template-columns 220ms ease-out; }
+    .grid.panel-open { grid-template-columns: minmax(0, 1.5fr) minmax(24rem, 0.95fr); }
     .panel { background: rgba(255,255,255,0.84); border-radius: 1.2rem; padding: 1.1rem; }
     .list-panel { overflow: hidden; }
     .panel-header, .side-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
     .panel-header h3, .side-panel-header h3 { margin: 0; }
     .table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 1rem; overflow: hidden; table-layout: fixed; }
-    th, td { padding: 0.72rem 0.85rem; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: middle; }
-    th { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
+    th, td { padding: 0.5rem 0.58rem; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: middle; line-height: 1.15; }
+    th { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
     tbody tr { transition: background 160ms ease; }
     tbody tr:hover, tbody tr.active { background: #fff7ed; }
-    strong { display: block; line-height: 1.2; }
+    strong { display: block; line-height: 1.15; }
+    .description-cell { color: #475569; font-size: 0.84rem; }
     .muted { color: #64748b; }
     .empty { text-align: center; color: #64748b; padding: 1rem; }
     .side-panel {
@@ -197,15 +196,16 @@ import { ProductsApiService } from '../services/products-api.service';
       max-width: 100%;
       padding-inline: 1.1rem;
     }
-    label { display: grid; gap: 0.4rem; color: #1e293b; font-weight: 600; }
+    label { display: grid; gap: 0.35rem; color: #1e293b; font-weight: 600; }
     .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
     .error { margin: 0; color: #991b1b; font-weight: 700; }
-    .status-badge { display: inline-flex; align-items: center; padding: 0.34rem 0.76rem; border-radius: 999px; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.01em; }
+    .status-badge { display: inline-flex; align-items: center; padding: 0.22rem 0.56rem; border-radius: 999px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.01em; }
     .status-badge.active { background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #166534; box-shadow: inset 0 0 0 1px rgba(22, 101, 52, 0.08); }
     .status-badge.inactive { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; box-shadow: inset 0 0 0 1px rgba(153, 27, 27, 0.08); }
 
     @media (max-width: 1000px) {
       .filters-grid { grid-template-columns: 1fr; }
+      .filters-grid .field input, .filters-grid .field select { width: 100%; min-width: 0; max-width: none; }
       .grid, .grid.panel-open { grid-template-columns: 1fr; }
       .side-panel, .side-panel.open { max-width: none; padding-inline: 1.1rem; opacity: 1; transform: none; }
       .side-panel:not(.open) { display: none; }
@@ -227,6 +227,7 @@ export class ProductsPageComponent {
   readonly filterState = signal(this.filters.getRawValue());
   readonly form = this.fb.nonNullable.group({
     name: ['', Validators.required],
+    description: [''],
     category: [''],
     price: [0, [Validators.required, Validators.min(0.01)]],
   });
@@ -242,10 +243,12 @@ export class ProductsPageComponent {
     const normalizedCategory = category.trim().toLocaleLowerCase();
 
     return this.products().filter((item) => {
-      const matchesName = normalizedTerm.length === 0 || item.name.toLocaleLowerCase().includes(normalizedTerm);
-      const matchesCategory = normalizedCategory.length === 0 || item.category.toLocaleLowerCase() === normalizedCategory;
+      const matchesTerm = normalizedTerm.length === 0
+        || item.name.toLocaleLowerCase().includes(normalizedTerm)
+        || item.description.toLocaleLowerCase().includes(normalizedTerm);
+      const matchesCategory = normalizedCategory.length === 0 || item.category.toLocaleLowerCase().includes(normalizedCategory);
       const matchesStatus = !status || item.status === status;
-      return matchesName && matchesCategory && matchesStatus;
+      return matchesTerm && matchesCategory && matchesStatus;
     });
   });
 
@@ -288,13 +291,13 @@ export class ProductsPageComponent {
 
   edit(item: Product): void {
     this.selected.set(item);
-    this.form.patchValue({ name: item.name, category: item.category, price: item.price });
+    this.form.patchValue({ name: item.name, description: item.description, category: item.category, price: item.price });
     this.isPanelOpen.set(true);
   }
 
   openCreatePanel(): void {
     this.selected.set(null);
-    this.form.reset({ name: '', category: '', price: 0 });
+    this.form.reset({ name: '', description: '', category: '', price: 0 });
     this.error.set('');
     this.isPanelOpen.set(true);
   }
@@ -334,7 +337,7 @@ export class ProductsPageComponent {
   toggleStatus(): void {
     const current = this.selected();
     if (!current) {
-        return;
+      return;
     }
 
     const request = current.status === 'ACTIVE'
@@ -366,6 +369,10 @@ export class ProductsPageComponent {
       },
       error: (error: HttpErrorResponse) => this.error.set(this.resolveError(error, 'Suppression impossible')),
     });
+  }
+
+  statusLabel(status: Product['status']): string {
+    return status === 'ACTIVE' ? 'Actif' : 'Inactif';
   }
 
   private resolveError(error: HttpErrorResponse, fallback: string): string {

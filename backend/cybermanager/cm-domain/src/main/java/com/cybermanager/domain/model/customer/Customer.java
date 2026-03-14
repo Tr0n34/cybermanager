@@ -42,5 +42,10 @@ public record Customer(
         return new Customer(id, name, CustomerType.SUBSCRIBER, status, nextMinutes);
     }
 
+    public Customer removeSubscriptionMinutes(int minutesToRemove) {
+        int nextMinutes = Math.max(0, remainingMinutes - Math.max(0, minutesToRemove));
+        return new Customer(id, name, CustomerType.SUBSCRIBER, status, nextMinutes);
+    }
+
 }
 

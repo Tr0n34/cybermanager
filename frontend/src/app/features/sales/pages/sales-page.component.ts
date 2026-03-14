@@ -15,7 +15,7 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
 import type { Sale } from '../models/sales.models';
 import { SalesApiService } from '../services/sales-api.service';
 
-type SalesPanelMode = 'product' | 'subscription' | 'connection';
+type SalesPanelMode = 'product' | 'subscription';
 
 @Component({
   selector: 'app-sales-page',
@@ -31,7 +31,7 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
               <span class="filter-icon" aria-hidden="true"></span>
               <span>Filtres</span>
             </button>
-            <a routerLink="/sales/pricing" class="link-button secondary">Configurer les tarifs</a>
+            <a routerLink="/sales/pricing" [state]="{ fromSales: true }" class="link-button secondary">Configurer les tarifs</a>
             <button type="button" class="secondary" (click)="openPanel('product')">Nouvelle vente</button>
           </div>
         </div>
@@ -40,15 +40,14 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
       <p class="error" *ngIf="error()">{{ error() }}</p>
 
       <div class="filters-grid collapsible" [class.is-collapsed]="!showFilters()" [formGroup]="filters">
-        <label class="field">
-          <span>Type</span>
-          <select formControlName="type">
-            <option value="">Tous les types</option>
-            <option value="PRODUCTS">Produits</option>
-            <option value="CONNECTION_TIME">Temps de connexion</option>
-            <option value="SUBSCRIPTION">Abonnement</option>
-          </select>
-        </label>
+          <label class="field">
+            <span>Type</span>
+            <select formControlName="type">
+              <option value="">Tous les types</option>
+              <option value="PRODUCTS">Produits</option>
+              <option value="SUBSCRIPTION">Abonnement</option>
+            </select>
+          </label>
 
         <label class="field">
           <span>Article</span>
@@ -101,7 +100,6 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
           <div class="mode-switches">
             <button type="button" [class.secondary]="panelMode() !== 'product'" (click)="openPanel('product')">Produit</button>
             <button type="button" [class.secondary]="panelMode() !== 'subscription'" (click)="openPanel('subscription')">Abonnement</button>
-            <button type="button" [class.secondary]="panelMode() !== 'connection'" (click)="openPanel('connection')">Temps</button>
           </div>
 
           <label class="field">
@@ -155,18 +153,6 @@ type SalesPanelMode = 'product' | 'subscription' | 'connection';
               <span>Creer une dette au lieu d'encaisser</span>
             </label>
             <button type="submit" [disabled]="!selectedCustomer() || subscriptionSaleForm.invalid">Enregistrer la vente</button>
-          </form>
-
-          <form class="stack" [formGroup]="connectionSaleForm" (ngSubmit)="sellConnection()" *ngIf="panelMode() === 'connection'">
-            <label class="field">
-              <span>Duree en minutes</span>
-              <input type="number" min="1" formControlName="minutes" />
-            </label>
-            <label class="checkbox">
-              <input type="checkbox" formControlName="createDebt" />
-              <span>Creer une dette au lieu d'encaisser</span>
-            </label>
-            <button type="submit" [disabled]="!selectedCustomer() || connectionSaleForm.invalid">Enregistrer la vente</button>
           </form>
         </article>
       </div>
@@ -257,7 +243,6 @@ export class SalesPageComponent {
   readonly customerSearchForm = this.fb.nonNullable.group({ term: [''] });
   readonly productSaleForm = this.fb.nonNullable.group({ productId: ['', Validators.required], quantity: [1, [Validators.required, Validators.min(1)]], createDebt: [false] });
   readonly subscriptionSaleForm = this.fb.nonNullable.group({ subscriptionOfferId: ['', Validators.required], createDebt: [false] });
-  readonly connectionSaleForm = this.fb.nonNullable.group({ minutes: [60, [Validators.required, Validators.min(1)]], createDebt: [false] });
   readonly filteredSales = computed(() => {
     const { type, article } = this.filterState();
     const normalizedArticle = article.trim().toLocaleLowerCase();
@@ -292,9 +277,6 @@ export class SalesPageComponent {
   panelTitle(): string {
     if (this.panelMode() === 'subscription') {
       return "Vente d'abonnement";
-    }
-    if (this.panelMode() === 'connection') {
-      return 'Vente de temps';
     }
     return 'Vente de produit';
   }
@@ -376,26 +358,9 @@ export class SalesPageComponent {
     });
   }
 
-  sellConnection(): void {
-    const customer = this.selectedCustomer();
-    const { minutes, createDebt } = this.connectionSaleForm.getRawValue();
-    if (!customer) {
-      this.error.set('Selectionne un client ou un abonne.');
-      return;
-    }
-    this.salesApi.connectionSale({ customerId: customer.customerId, minutes, createDebt }).subscribe({
-      next: () => {
-        this.closePanel();
-        this.reload();
-      },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Vente de temps impossible'),
-    });
-  }
-
   private resetForms(): void {
     this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
     this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
-    this.connectionSaleForm.reset({ minutes: 60, createDebt: false });
   }
 
   saleTypeLabel(type: string): string {
@@ -412,10 +377,10 @@ export class SalesPageComponent {
   }
 
   customerTypeLabel(type: string): string {
-    return type === 'SUBSCRIBER' ? 'Abonne' : 'Client';
+    return type === 'SUBSCRIBER' || type.toLowerCase().includes('abonn') ? 'Abonne' : 'Client';
   }
 
   customerTypeChipClass(type: string): string {
-    return type === 'SUBSCRIBER' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
+    return this.customerTypeLabel(type) === 'Abonne' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
   }
 }

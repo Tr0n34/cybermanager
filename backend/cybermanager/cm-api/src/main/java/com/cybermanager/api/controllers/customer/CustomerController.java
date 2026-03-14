@@ -5,6 +5,7 @@ import com.cybermanager.api.shared.ApiSupport;
 import com.cybermanager.application.commands.customer.ConvertCustomerToSubscriberCommand;
 import com.cybermanager.application.commands.customer.CreateDebtFromSaleCommand;
 import com.cybermanager.application.commands.customer.CreateCustomerCommand;
+import com.cybermanager.application.commands.customer.ReattachDebtToSessionCommand;
 import com.cybermanager.application.commands.customer.SettleDebtCommand;
 import com.cybermanager.application.commands.customer.UpdateCustomerCommand;
 import com.cybermanager.application.queries.customer.GetCustomerDetailsQuery;
@@ -51,8 +52,10 @@ public class CustomerController {
                 view.currentSubscriptionLabel(),
                 view.purchases().stream().map(purchase -> new CustomerPurchaseResponse(
                         purchase.saleId(),
+                        purchase.sessionId(),
                         purchase.type(),
                         purchase.label(),
+                        purchase.debtLabel(),
                         purchase.soldAt(),
                         purchase.totalAmount(),
                         purchase.openDebt()
@@ -60,6 +63,7 @@ public class CustomerController {
                 view.debts().stream().map(debt -> new CustomerDebtResponse(
                         debt.debtId(),
                         debt.label(),
+                        debt.comment(),
                         debt.amount(),
                         debt.status(),
                         debt.createdAt(),
@@ -85,7 +89,7 @@ public class CustomerController {
     @PostMapping("/{id}/convert-to-subscriber")
     public ResponseEntity<ConversionResponse> convert(@RequestHeader("Authorization") String authorization, @PathVariable("id") UUID id, @RequestBody ConvertToSubscriberRequest request) {
         var actor = ApiSupport.actor(authorization, tokenReader);
-        var view = service.execute(new ConvertCustomerToSubscriberCommand(actor.email(), actor.roles(), id, request.subscriptionOfferId(), request.deductCurrentSession()));
+        var view = service.execute(new ConvertCustomerToSubscriberCommand(actor.email(), actor.roles(), id, request.subscriptionOfferId(), request.deductCurrentSession(), request.sessionId()));
         var customer = view.customer();
         return ResponseEntity.ok(new ConversionResponse(new CustomerResponse(customer.customerId(), customer.name(), customer.type(), customer.status(), customer.remainingMinutes(), customer.openDebtAmount()), view.saleId(), view.deductedMinutes()));
     }
@@ -101,6 +105,7 @@ public class CustomerController {
                         customer.debts().stream().map(debt -> new CustomerDebtResponse(
                                 debt.debtId(),
                                 debt.label(),
+                                debt.comment(),
                                 debt.amount(),
                                 debt.status(),
                                 debt.createdAt(),
@@ -111,9 +116,16 @@ public class CustomerController {
     }
 
     @PostMapping("/debts/{debtId}/settle")
-    public ResponseEntity<Void> settleDebt(@RequestHeader("Authorization") String authorization, @PathVariable("debtId") UUID debtId) {
+    public ResponseEntity<Void> settleDebt(@RequestHeader("Authorization") String authorization, @PathVariable("debtId") UUID debtId, @RequestBody(required = false) SettleDebtRequest request) {
         var actor = ApiSupport.actor(authorization, tokenReader);
-        service.execute(new SettleDebtCommand(actor.email(), actor.roles(), debtId));
+        service.execute(new SettleDebtCommand(actor.email(), actor.roles(), debtId, request == null ? null : request.comment()));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/debts/{debtId}/reattach-to-session")
+    public ResponseEntity<Void> reattachDebtToSession(@RequestHeader("Authorization") String authorization, @PathVariable("debtId") UUID debtId, @RequestBody ReattachDebtToSessionRequest request) {
+        var actor = ApiSupport.actor(authorization, tokenReader);
+        service.execute(new ReattachDebtToSessionCommand(actor.email(), actor.roles(), debtId, request.sessionId()));
         return ResponseEntity.noContent().build();
     }
 

@@ -4,12 +4,13 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { debounceTime, distinctUntilChanged, forkJoin, interval, map } from 'rxjs';
+import { debounceTime, distinctUntilChanged, forkJoin, interval, map, of, switchMap } from 'rxjs';
 
 import type { Customer, CustomerDetails, CustomerPurchase } from '../../customers/models/customer.models';
 import { CustomersApiService } from '../../customers/services/customers-api.service';
 import type { Product } from '../../products/models/product.models';
 import { ProductsApiService } from '../../products/services/products-api.service';
+import type { ConnectionPricingTier } from '../../sales/models/sales.models';
 import type { SubscriptionOffer } from '../../subscriptions/models/subscription-offer.models';
 import { SubscriptionOffersApiService } from '../../subscriptions/services/subscription-offers-api.service';
 import { SalesApiService } from '../../sales/services/sales-api.service';
@@ -22,8 +23,10 @@ type SessionDetailEntry = {
   kind: 'purchase' | 'debt';
   saleIds: string[];
   debtIds: string[];
+  sessionId?: string | null;
   label: string;
   rawLabel?: string;
+  debtLabel?: string;
   occurredAt: string;
   amount: number;
   openDebt: boolean;
@@ -41,6 +44,7 @@ type SessionDetailEntry = {
         </div>
         <div class="hero-actions">
           <p class="lede">Lance une session journaliere, cree un client abonne ou retrouve rapidement un client existant par autocompletion.</p>
+          <button type="button" class="ghost" (click)="restartSessionsDay()">Enregistrer et redemarrage des sessions</button>
           <a routerLink="/sessions/settings" class="ghost-link">Configurer l'affichage</a>
         </div>
       </header>
@@ -165,46 +169,58 @@ type SessionDetailEntry = {
             <div class="table-shell fixed-shell">
               <table class="table">
                 <thead>
-                  <tr><th>Client</th><th class="center-cell">Type</th><th class="center-cell">Etat</th><th class="center-cell">Credit</th><th class="center-cell">A payer</th><th class="center-cell">Consomme</th><th class="center-cell">Debut</th><th class="actions-head" colspan="4"></th></tr>
+                  <tr><th class="center-cell indicator-head"></th><th>Client</th><th class="center-cell">Type</th><th class="center-cell">Etat</th><th class="center-cell">Credit</th><th class="center-cell">A payer</th><th class="center-cell">Consomme</th><th class="center-cell">Debut</th><th class="actions-head" colspan="4"></th></tr>
                 </thead>
                 <tbody>
                   <ng-container *ngFor="let item of pagedCurrent()">
-                    <tr [class.active-row]="sessionState(item) === 'En cours'" [class.paused-row]="sessionState(item) === 'Pause'" [class.paid-row]="sessionState(item) === 'Paye'">
+                    <tr [class.active-row]="sessionState(item) === 'En cours'" [class.paused-row]="sessionState(item) === 'Pause'" [class.awaiting-payment-row]="sessionState(item) === 'A payer'" [class.paid-row]="sessionState(item) === 'Terminee'">
+                      <td class="center-cell indicator-cell">
+                        <span *ngIf="hasOpenDebt(item); else standardUserIndicator" class="session-indicator debt-session-indicator" title="Client avec dette ouverte" aria-label="Client avec dette ouverte">D</span>
+                        <ng-template #standardUserIndicator>
+                          <span class="session-indicator ok-session-indicator" title="Client sans dette ouverte" aria-label="Client sans dette ouverte">
+                            ✓
+                          </span>
+                        </ng-template>
+                      </td>
                       <td class="client-cell">{{ item.customerName }}</td>
                       <td class="center-cell"><span [class]="customerTypeChipClass(item.customerType)">{{ customerTypeLabel(item.customerType) }}</span></td>
-                      <td class="center-cell"><span class="inline-state" [class.paused-chip]="sessionState(item) === 'Pause'" [class.active-chip]="sessionState(item) === 'En cours'" [class.paid-chip]="sessionState(item) === 'Paye'">{{ sessionState(item) }}</span></td>
+                      <td class="center-cell"><span class="inline-state" [class.paused-chip]="sessionState(item) === 'Pause'" [class.active-chip]="sessionState(item) === 'En cours'" [class.pending-chip]="sessionState(item) === 'A payer'" [class.paid-chip]="sessionState(item) === 'Terminee'">{{ sessionState(item) }}</span></td>
                       <td class="center-cell">
                         <span *ngIf="item.customerType === 'SUBSCRIBER'; else noCredit">{{ formatRemaining(item) }}</span>
                         <ng-template #noCredit><span class="empty-chip">Aucun</span></ng-template>
                       </td>
-                      <td class="center-cell">{{ item.totalAmountDue | number:'1.2-2' }} EUR</td>
+                      <td class="center-cell" [class.pending-amount]="isAwaitingPayment(item)">{{ item.totalAmountDue | number:'1.2-2' }} EUR</td>
                       <td class="center-cell">{{ formatElapsed(item) }}</td>
                       <td class="center-cell">{{ item.startedAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                      <td class="action-cell"><button type="button" class="ghost" (click)="togglePause(item)">{{ item.paused ? 'Reprendre' : 'Pause' }}</button></td>
-                      <td class="action-cell"><button type="button" (click)="openStopDialog(item)">Arreter</button></td>
+                      <td class="action-cell"><button type="button" class="ghost" *ngIf="canPauseOrResume(item)" (click)="togglePause(item)">{{ item.paused ? 'Reprendre' : 'Pause' }}</button></td>
+                      <td class="action-cell"><button type="button" *ngIf="canStop(item)" (click)="stopSession(item)">Arreter</button></td>
+                      <td class="action-cell"><button type="button" *ngIf="canPay(item)" (click)="openPaymentDialog(item)">Payer</button></td>
                       <td class="action-cell"><button type="button" class="ghost" (click)="toggleDetails(item)">Detail</button></td>
-                      <td class="action-cell"><button type="button" class="ghost" *ngIf="item.customerType === 'WALK_IN'" (click)="selectWalkInSession(item)">Convertir</button></td>
+                      <td class="action-cell"><button type="button" class="ghost" *ngIf="item.customerType === 'WALK_IN' && canStop(item)" (click)="selectWalkInSession(item)">Convertir</button></td>
                     </tr>
                     <tr class="detail-row" *ngIf="expandedSessionId() === item.sessionId">
-                      <td colspan="11">
+                      <td colspan="12">
                         <div class="detail-card" *ngIf="sessionDetails()[item.customerId] as details; else detailLoading">
                           <div class="detail-grid">
                             <section class="stack">
-                              <h4>Achats du jour</h4>
-                              <div class="purchase-list" *ngIf="todayEntries(details).length > 0; else noPurchases">
-                                <article class="purchase-item compact session-entry" [class.debt-entry]="entry.kind === 'debt'" *ngFor="let entry of todayEntries(details)">
+                              <h4>Achats de la session et dettes</h4>
+                              <div class="purchase-list" *ngIf="sessionEntries(item, details).length > 0; else noPurchases">
+                                <article class="purchase-item compact session-entry" [class.debt-entry]="entry.kind === 'debt'" *ngFor="let entry of sessionEntries(item, details)">
                                   <strong>
                                     <span class="money-alert-icon debt-entry-icon" *ngIf="entry.openDebt" title="Dette ouverte"><span class="bill back"></span><span class="bill front"></span><span class="slash"></span></span>
                                     {{ formatEntryLabel(entry.label) }}
                                   </strong>
                                   <span class="entry-date">{{ entry.occurredAt | date:'dd/MM/yyyy HH:mm' }}</span>
                                   <span class="entry-amount">{{ entry.amount | number:'1.2-2' }} EUR</span>
-                                  <label class="entry-check" title="Cocher pour mettre en dette ou regler la dette">
-                                    <input type="checkbox" [checked]="entry.openDebt" (change)="toggleEntryDebt(entry, $event)" />
-                                  </label>
+                                  <span class="entry-actions-cell">
+                                    <label class="entry-check" title="Cocher pour mettre en dette ou regler la dette">
+                                      <input type="checkbox" [checked]="entry.openDebt" (change)="toggleEntryDebt(item, entry, $event)" />
+                                    </label>
+                                    <button type="button" class="ghost compact-remove icon-remove" *ngIf="canDeleteSubscriptionEntry(item, entry)" (click)="deleteSubscriptionEntry(item, entry)" aria-label="Supprimer l abonnement" title="Supprimer l abonnement">-</button>
+                                  </span>
                                 </article>
                               </div>
-                              <ng-template #noPurchases><p class="muted">Aucun achat aujourd'hui.</p></ng-template>
+                            <ng-template #noPurchases><p class="muted">Aucun achat rattache a cette session ni dette ouverte.</p></ng-template>
                             </section>
 
                             <section class="stack">
@@ -242,134 +258,68 @@ type SessionDetailEntry = {
         </article>
       </div>
 
-      <article class="panel day-panel stack">
-        <section class="stack">
-          <div class="section-head">
-            <div class="section-title-group">
-              <h3>Sessions du jour</h3>
-              <button type="button" class="ghost filter-toggle" (click)="showDayFilters.set(!showDayFilters())" [attr.aria-expanded]="showDayFilters()">
-                <span class="filter-icon" aria-hidden="true"></span>
-                <span>Filtres</span>
-              </button>
-            </div>
-            <div class="section-tools">
-              <p class="meta">{{ filteredDay().length }} resultat(s)</p>
-            </div>
-          </div>
-            <div class="filters-grid collapsible" [class.is-collapsed]="!showDayFilters()">
-            <label class="field">
-              <span>Recherche par nom</span>
-              <input [formControl]="dayFilters.controls.term" placeholder="Nom du client" />
-            </label>
-            <label class="field">
-              <span>Debut a partir de</span>
-              <input type="datetime-local" [formControl]="dayFilters.controls.startedAfter" />
-            </label>
-          </div>
-          <div class="table-shell">
-            <table class="table">
-              <thead>
-                <tr><th>Client</th><th class="center-cell">Type</th><th class="center-cell">Duree</th><th class="center-cell">Credit</th><th class="center-cell">A payer</th><th class="center-cell">Debut</th><th class="center-cell">Fin</th><th></th></tr>
-              </thead>
-              <tbody>
-                <ng-container *ngFor="let item of pagedDay()">
-                  <tr>
-                    <td class="client-cell">{{ item.customerName }}</td>
-                    <td class="center-cell"><span [class]="customerTypeChipClass(item.customerType)">{{ customerTypeLabel(item.customerType) }}</span></td>
-                    <td class="center-cell">{{ item.consumedMinutes }} min</td>
-                    <td class="center-cell">
-                      <span *ngIf="item.customerType === 'SUBSCRIBER'; else noDayCredit">{{ item.remainingMinutes }} min</span>
-                      <ng-template #noDayCredit><span class="empty-chip">Aucun</span></ng-template>
-                    </td>
-                    <td class="center-cell">{{ item.totalAmountDue | number:'1.2-2' }} EUR</td>
-                    <td class="center-cell">{{ item.startedAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                    <td class="center-cell">{{ item.endedAt ? (item.endedAt | date:'dd/MM/yyyy HH:mm') : '-' }}</td>
-                    <td class="action-cell"><button type="button" class="ghost" (click)="toggleDayDetails(item)">Detail</button></td>
-                  </tr>
-                  <tr class="detail-row" *ngIf="expandedDaySessionId() === item.sessionId">
-                    <td colspan="8">
-                      <div class="detail-card" *ngIf="sessionDetails()[item.customerId] as details; else dayDetailLoading">
-                        <div class="detail-grid">
-                          <section class="stack">
-                            <h4>Achats du jour</h4>
-                            <div class="purchase-list" *ngIf="todayEntries(details).length > 0; else noDayPurchases">
-                              <article class="purchase-item compact session-entry" [class.debt-entry]="entry.kind === 'debt'" *ngFor="let entry of todayEntries(details)">
-                                <strong>
-                                  <span class="money-alert-icon debt-entry-icon" *ngIf="entry.openDebt" title="Dette ouverte"><span class="bill back"></span><span class="bill front"></span><span class="slash"></span></span>
-                                  {{ formatEntryLabel(entry.label) }}
-                                </strong>
-                                <span class="entry-date">{{ entry.occurredAt | date:'dd/MM/yyyy HH:mm' }}</span>
-                                <span class="entry-amount">{{ entry.amount | number:'1.2-2' }} EUR</span>
-                                <label class="entry-check" title="Cocher pour mettre en dette ou regler la dette">
-                                  <input type="checkbox" [checked]="entry.openDebt" (change)="toggleEntryDebt(entry, $event)" />
-                                </label>
-                              </article>
-                            </div>
-                            <ng-template #noDayPurchases><p class="muted">Aucun achat aujourd'hui.</p></ng-template>
-                          </section>
-
-                          <section class="stack">
-                            <h4>Resume abonnement</h4>
-                            <p class="muted"><strong>Type :</strong> <span [class]="customerTypeChipClass(details.type)">{{ customerTypeLabel(details.type) }}</span></p>
-                            <p class="muted"><strong>Abonnements :</strong> {{ details.currentSubscriptionLabel ?? 'Aucun' }}</p>
-                            <p class="muted" *ngIf="details.type === 'SUBSCRIBER'">Les abonnements se cumulent.</p>
-                            <p class="muted"><strong>Credit :</strong> {{ details.remainingMinutes }} min</p>
-                            <p class="muted"><strong>Cout connexion :</strong> {{ item.calculatedPrice | number:'1.2-2' }} EUR</p>
-                            <p class="muted"><strong>Achats du jour :</strong> {{ item.purchasesAmount | number:'1.2-2' }} EUR</p>
-                            <p class="muted"><strong>A payer :</strong> {{ item.totalAmountDue | number:'1.2-2' }} EUR</p>
-                            <p class="muted debt-summary" *ngIf="details.debts.length > 0"><strong>Dettes :</strong> <span class="money-alert-icon debt-indicator" title="Dettes ouvertes"><span class="bill back"></span><span class="bill front"></span><span class="slash"></span></span></p>
-                          </section>
-                        </div>
-                      </div>
-                      <ng-template #dayDetailLoading>
-                        <p class="muted">Chargement du detail...</p>
-                      </ng-template>
-                    </td>
-                  </tr>
-                </ng-container>
-              </tbody>
-            </table>
-          </div>
-          <div class="pager" *ngIf="dayPageCount() > 1">
-            <button type="button" class="ghost" (click)="changeDayPage(-1)" [disabled]="dayPage() === 1">Precedent</button>
-            <span>Page {{ dayPage() }} / {{ dayPageCount() }}</span>
-            <button type="button" class="ghost" (click)="changeDayPage(1)" [disabled]="dayPage() === dayPageCount()">Suivant</button>
-          </div>
-        </section>
-      </article>
-      <div class="modal-backdrop" *ngIf="stopTargetSession() as session" (click)="closeStopDialog()">
+      <div class="modal-backdrop" *ngIf="payTargetSession() as session" (click)="closePaymentDialog()">
         <div class="confirm-modal" (click)="$event.stopPropagation()">
           <div class="section-head">
             <div>
-              <h3>Arreter la session</h3>
+              <h3>Regler la session</h3>
               <p class="meta">{{ session.customerName }}</p>
             </div>
-            <button type="button" class="ghost" (click)="closeStopDialog()">Fermer</button>
+            <button type="button" class="ghost" (click)="closePaymentDialog()">Fermer</button>
           </div>
           <div class="stack confirm-body">
-            <p class="muted">Confirme l'arret et precise si le montant est regle maintenant.</p>
+            <p class="muted">Le compteur est arrete. Encaisse le montant regle maintenant et finalise la session.</p>
             <div class="confirm-summary">
-              <p><strong>Connexion :</strong> {{ session.calculatedPrice | number:'1.2-2' }} EUR</p>
-              <p><strong>Achats du jour :</strong> {{ stopDialogPurchaseAmount(session) | number:'1.2-2' }} EUR</p>
-              <p class="confirm-total"><strong>Total du jour :</strong> {{ stopDialogTotalAmount(session) | number:'1.2-2' }} EUR</p>
-              <div class="confirm-debts" *ngIf="stopDialogOpenDebts().length > 0">
-                <p><strong>Dettes ouvertes a rappeler :</strong> {{ stopDialogDebtAmount() | number:'1.2-2' }} EUR</p>
+              <p class="confirm-total"><strong>A payer :</strong> {{ paymentDialogTotalAmount(session) | number:'1.2-2' }} EUR</p>
+              <div *ngIf="paymentSelectedOffers().length > 0">
+                <p><strong>Nouveaux abonnements ajoutes :</strong></p>
                 <div class="purchase-list">
-                  <article class="purchase-item compact session-entry debt-entry" *ngFor="let debt of stopDialogOpenDebts()">
-                    <strong>
-                      <span class="money-alert-icon debt-entry-icon" title="Dette ouverte"><span class="bill back"></span><span class="bill front"></span><span class="slash"></span></span>
-                      {{ formatEntryLabel(debt.label) }}
-                    </strong>
-                    <span class="entry-date">{{ debt.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-                    <span class="entry-amount">{{ debt.amount | number:'1.2-2' }} EUR</span>
-                    <span></span>
+                  <article class="purchase-item compact session-entry" *ngFor="let offer of paymentSelectedOffers(); let index = index">
+                    <strong>{{ offer.name }}</strong>
+                    <span class="entry-date">{{ offer.includedMinutes }} min</span>
+                    <span class="entry-amount">{{ offer.price | number:'1.2-2' }} EUR</span>
+                    <button type="button" class="ghost compact-remove" (click)="removePaymentOffer(index)">Retirer</button>
                   </article>
                 </div>
+                <p class="muted" *ngIf="paymentResolutionForm.controls.createSubscriptionDebt.value">Ces nouveaux abonnements seront mis en dette.</p>
               </div>
             </div>
+            <form class="stack" [formGroup]="paymentResolutionForm">
+              <label class="field">
+                <span>Montant regle par le client</span>
+                <input type="number" min="0" step="0.01" formControlName="amountPaid" />
+              </label>
+              <p class="muted">Montant conseille : {{ paymentDialogTotalAmount(session) | number:'1.2-2' }} EUR</p>
+              <ng-container *ngIf="session.customerType === 'SUBSCRIBER' && paymentDialogRawOvertimeMinutes(session) > 0">
+                <label class="field">
+                  <span>Ajouter un abonnement</span>
+                  <select formControlName="offerToAddId">
+                    <option value="">Choisir une offre</option>
+                    <option *ngFor="let offer of offers()" [value]="offer.offerId">{{ offer.name }} - {{ offer.includedMinutes }} min - {{ offer.price | number:'1.2-2' }} EUR</option>
+                  </select>
+                </label>
+                <div class="actions inline-actions">
+                  <button type="button" class="ghost" (click)="addPaymentOffer()" [disabled]="!paymentResolutionForm.controls.offerToAddId.value">Ajouter cet abonnement</button>
+                </div>
+                <p class="muted">Ajoute un ou plusieurs abonnements si tu veux reduire le temps en trop avant le paiement.</p>
+                <label class="checkbox" *ngIf="paymentSelectedOffers().length > 0">
+                  <input type="checkbox" formControlName="createSubscriptionDebt" />
+                  <span>Mettre les nouveaux abonnements en dette</span>
+                </label>
+                <p class="muted" *ngIf="paymentSelectedOffers().length > 0 && paymentDialogOvertimeMinutes(session) === 0">
+                  Les nouveaux abonnements couvrent completement le depassement.
+                </p>
+                <p class="muted" *ngIf="paymentSelectedOffers().length > 0 && paymentDialogOvertimeMinutes(session) > 0">
+                  Apres ces abonnements, il restera {{ paymentDialogOvertimeMinutes(session) }} min en trop a payer.
+                </p>
+                <p class="muted" *ngIf="paymentSelectedOffers().length === 0">
+                  Sans nouvel abonnement, le temps en trop restera facture comme depassement.
+                </p>
+              </ng-container>
+            </form>
             <div class="actions">
-              <button type="button" class="ghost" (click)="confirmStop(false)">Arreter sans encaisser</button>
-              <button type="button" (click)="confirmStop(true)">C'est paye</button>
+              <button type="button" class="ghost" (click)="closePaymentDialog()">Annuler</button>
+              <button type="button" (click)="confirmPayment()">Valider le paiement</button>
             </div>
           </div>
         </div>
@@ -438,10 +388,12 @@ export class SessionsPageComponent {
   readonly subscriberResults = signal<Customer[]>([]);
   readonly offers = signal<SubscriptionOffer[]>([]);
   readonly products = signal<Product[]>([]);
+  readonly pricingTiers = signal<ConnectionPricingTier[]>([]);
   readonly selectedWalkInSession = signal<CafeSession | null>(null);
   readonly saleTargetSession = signal<CafeSession | null>(null);
   readonly saleModalType = signal<'product' | 'subscription' | null>(null);
-  readonly stopTargetSession = signal<CafeSession | null>(null);
+  readonly payTargetSession = signal<CafeSession | null>(null);
+  readonly paymentOfferIds = signal<string[]>([]);
   readonly expandedSessionId = signal<string | null>(null);
   readonly expandedDaySessionId = signal<string | null>(null);
   readonly sessionDetails = signal<Record<string, CustomerDetails>>({});
@@ -465,11 +417,12 @@ export class SessionsPageComponent {
   readonly convertForm = this.fb.nonNullable.group({ subscriptionOfferId: [''], deductCurrentSession: [false] });
   readonly productSaleForm = this.fb.nonNullable.group({ productId: ['', Validators.required], quantity: [1, [Validators.required, Validators.min(1)]], createDebt: [false] });
   readonly subscriptionSaleForm = this.fb.nonNullable.group({ subscriptionOfferId: ['', Validators.required], createDebt: [false] });
+  readonly paymentResolutionForm = this.fb.nonNullable.group({ offerToAddId: [''], createSubscriptionDebt: [false], amountPaid: [0, [Validators.required, Validators.min(0)]] });
   readonly currentFilters = this.fb.nonNullable.group({ term: [''], startedAfter: [''] });
   readonly dayFilters = this.fb.nonNullable.group({ term: [''], startedAfter: [''] });
 
   readonly filteredCurrent = computed(() => this.filterSessions(this.current(), this.currentTerm(), this.currentStartedAfter()));
-  readonly filteredDay = computed(() => this.filterSessions(this.day(), this.dayTerm(), this.dayStartedAfter()));
+  readonly filteredDay = computed(() => this.filterSessions(this.day().filter((session) => session.paid), this.dayTerm(), this.dayStartedAfter()));
   readonly currentPageCount = computed(() => this.getPageCount(this.filteredCurrent().length, this.settingsService.settings().currentPageSize));
   readonly dayPageCount = computed(() => this.getPageCount(this.filteredDay().length, this.settingsService.settings().dayPageSize));
   readonly pagedCurrent = computed(() => this.paginate(this.filteredCurrent(), this.currentPage(), this.settingsService.settings().currentPageSize));
@@ -478,6 +431,10 @@ export class SessionsPageComponent {
     this.logger.info('sessions-ui', 'Sessions page initialized');
     this.reload();
     this.loadOffers();
+    this.salesApi.pricing().subscribe({
+      next: (pricing) => this.pricingTiers.set(pricing.tiers),
+      error: () => this.pricingTiers.set([]),
+    });
     this.productsApi.search('', 'ACTIVE', '').subscribe({
       next: (value) => {
         this.products.set(value);
@@ -575,17 +532,19 @@ export class SessionsPageComponent {
         this.error.set(error.error?.message ?? 'Chargement des sessions en cours impossible');
       },
     });
-    this.api.day().subscribe({
+  }
+
+  restartSessionsDay(): void {
+    this.api.restartDay().subscribe({
       next: (value) => {
-        this.day.set(value);
-        this.dayPage.set(1);
-        this.error.set('');
-        this.logger.info('sessions-ui', 'Day sessions loaded', { count: value.length });
+        this.notice.set(
+          value.archivedSessions > 0
+            ? `${value.archivedSessions} session(s) arretee(s) ont ete enregistree(s) et archivee(s).`
+            : 'Aucune session arretee en attente a archiver.'
+        );
+        this.reload();
       },
-      error: (error: HttpErrorResponse) => {
-        this.logger.warn('sessions-ui', 'Day sessions loading failed', error);
-        this.error.set(error.error?.message ?? 'Chargement des sessions du jour impossible');
-      },
+      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Redemarrage des sessions impossible')),
     });
   }
 
@@ -598,7 +557,11 @@ export class SessionsPageComponent {
       next: (customers) => {
         this.subscriberResults.set(customers);
         this.error.set('');
-        this.logger.debug('sessions-ui', 'Subscriber autocomplete results received', { termLength: term.length, resultCount: customers.length });
+        this.logger.debug('sessions-ui', 'Subscriber autocomplete results received', {
+          termLength: term.length,
+          resultCount: customers.length,
+          alreadyActiveCount: customers.filter((customer) => this.hasCurrentSession(customer.customerId)).length,
+        });
       },
       error: (error: HttpErrorResponse) => {
         this.logger.warn('sessions-ui', 'Subscriber autocomplete failed', { termLength: term.length, error });
@@ -624,6 +587,14 @@ export class SessionsPageComponent {
   }
 
   startSubscriber(customer: Customer): void {
+    if (this.hasCurrentSession(customer.customerId)) {
+      this.error.set('Cet abonne a deja une session en cours.');
+      this.logger.warn('sessions-ui', 'Blocked duplicate subscriber session start', {
+        customerId: customer.customerId,
+        customerName: customer.name,
+      });
+      return;
+    }
     this.api.start({ customerId: customer.customerId }).subscribe({
       next: () => {
         this.subscriberSearchForm.reset({ term: '' });
@@ -641,46 +612,104 @@ export class SessionsPageComponent {
       this.error.set('Le nom et l offre d abonnement sont requis');
       return;
     }
-    this.customersApi.create({ name: payload.name.trim(), type: 'SUBSCRIBER', subscriptionOfferId: payload.subscriptionOfferId }).subscribe({
-      next: (customer) => {
+    const customerName = payload.name.trim();
+    const subscriptionOfferId = payload.subscriptionOfferId;
+    this.customersApi.create({ name: customerName, type: 'WALK_IN' }).pipe(
+      switchMap((customer) =>
+        this.api.start({ customerId: customer.customerId }).pipe(
+          switchMap((session) =>
+            this.customersApi.convert(customer.customerId, {
+              subscriptionOfferId,
+              deductCurrentSession: false,
+              sessionId: session.sessionId,
+            }).pipe(map(() => customer)),
+          ),
+        ),
+      ),
+    ).subscribe({
+      next: () => {
         this.newSubscriberForm.reset({ name: '', subscriptionOfferId: '' });
-        this.startSubscriber(customer);
+        this.notice.set('');
+        this.reload();
       },
       error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Creation de l abonne impossible'),
     });
   }
 
-  openStopDialog(session: CafeSession): void {
-    this.stopTargetSession.set(session);
+  openPaymentDialog(session: CafeSession): void {
+    const suggestedAmount = Number(Number(session.totalAmountDue ?? 0).toFixed(2));
+    this.payTargetSession.set(session);
+    this.paymentOfferIds.set([]);
+    this.paymentResolutionForm.reset({ offerToAddId: '', createSubscriptionDebt: false, amountPaid: suggestedAmount });
     this.loadCustomerDetails(session.customerId);
     this.error.set('');
     this.notice.set('');
   }
 
-  closeStopDialog(): void {
-    this.stopTargetSession.set(null);
+  closePaymentDialog(): void {
+    this.payTargetSession.set(null);
+    this.paymentOfferIds.set([]);
+    this.paymentResolutionForm.reset({ offerToAddId: '', createSubscriptionDebt: false, amountPaid: 0 });
   }
 
-  confirmStop(paid: boolean): void {
-    const session = this.stopTargetSession();
+  stopSession(session: CafeSession): void {
+    this.api.stop(session.sessionId).subscribe({
+      next: (stoppedSession) => {
+        this.notice.set(`Session arretee. Montant a payer : ${Number(stoppedSession.totalAmountDue ?? 0).toFixed(2)} EUR.`);
+        this.current.update((sessions) => sessions.map((item) => item.sessionId === stoppedSession.sessionId ? stoppedSession : item));
+        this.sessionObservedAt.update((observedAt) => ({ ...observedAt, [stoppedSession.sessionId]: Date.now() }));
+        this.refreshCustomerDetails(session.customerId);
+        this.reload();
+      },
+      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Arret impossible')),
+    });
+  }
+
+  confirmPayment(): void {
+    const session = this.payTargetSession();
     if (!session) {
       return;
     }
-    this.api.stop(session.sessionId, paid).subscribe({
-      next: (stoppedSession) => {
-        const connection = Number(stoppedSession.calculatedPrice ?? 0);
-        const purchases = this.stopDialogPurchaseAmount(session);
-        const total = connection + purchases;
-        this.notice.set(paid
-          ? `Session arretee et reglee. Total : ${(connection + purchases).toFixed(2)} EUR (Connexion : ${connection.toFixed(2)} EUR, Achats : ${purchases.toFixed(2)} EUR)`
-          : (total > 0
-            ? `Session arretee. Total a payer : ${total.toFixed(2)} EUR (Connexion : ${connection.toFixed(2)} EUR, Achats : ${purchases.toFixed(2)} EUR)`
-            : `Session arretee. Aucun montant a payer. (Connexion : ${connection.toFixed(2)} EUR, Achats : ${purchases.toFixed(2)} EUR)`));
-        this.closeStopDialog();
+    if (this.paymentResolutionForm.invalid) {
+      this.paymentResolutionForm.markAllAsTouched();
+      return;
+    }
+    const selectedOffers = this.paymentSelectedOffers();
+    const createSubscriptionDebt = this.paymentResolutionForm.controls.createSubscriptionDebt.value;
+    const amountPaid = Number(this.paymentResolutionForm.controls.amountPaid.value ?? 0);
+    const requiredAmount = this.paymentDialogTotalAmount(session);
+
+    if (amountPaid + 0.001 < requiredAmount) {
+      this.error.set(`Le montant regle ne couvre pas le total a payer (${requiredAmount.toFixed(2)} EUR).`);
+      return;
+    }
+
+    this.api.pay(session.sessionId, {
+      amountPaid,
+      subscriptionOfferIds: selectedOffers.map((offer) => offer.offerId),
+      createSubscriptionDebt,
+    }).subscribe({
+      next: () => {
+        const connection = this.paymentDialogConnectionAmount(session);
+        const purchases = this.paymentDialogPurchaseAmount(session);
+        const subscriptionPaid = !createSubscriptionDebt
+          ? selectedOffers.reduce((total, offer) => total + Number(offer.price ?? 0), 0)
+          : 0;
+        const dayTotal = connection + purchases + subscriptionPaid;
+        const subscriptionNotice = createSubscriptionDebt && selectedOffers.length > 0
+          ? selectedOffers.length > 1
+            ? 'Paiement valide. Nouveaux abonnements ajoutes en dette.'
+            : 'Paiement valide. Nouvel abonnement ajoute en dette.'
+          : 'Paiement valide.';
+        this.notice.set(
+          `${subscriptionNotice} Total paye : ${dayTotal.toFixed(2)} EUR.`
+        );
+        this.closePaymentDialog();
         this.closeSaleModal();
+        this.refreshCustomerDetails(session.customerId);
         this.reload();
       },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Arret impossible'),
+      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Paiement impossible')),
     });
   }
 
@@ -726,7 +755,7 @@ export class SessionsPageComponent {
       return;
     }
     const { productId, quantity, createDebt } = this.productSaleForm.getRawValue();
-    this.salesApi.productSale({ customerId: session.customerId, lines: [{ productId, quantity }], createDebt }).subscribe({
+    this.salesApi.productSale({ customerId: session.customerId, sessionId: session.sessionId, lines: [{ productId, quantity }], createDebt }).subscribe({
       next: () => {
         this.refreshCustomerDetails(session.customerId);
         this.closeSaleModal();
@@ -743,7 +772,7 @@ export class SessionsPageComponent {
       return;
     }
     const { subscriptionOfferId, createDebt } = this.subscriptionSaleForm.getRawValue();
-    this.salesApi.subscriptionSale({ customerId: session.customerId, subscriptionOfferId, createDebt }).subscribe({
+    this.salesApi.subscriptionSale({ customerId: session.customerId, sessionId: session.sessionId, subscriptionOfferId, createDebt }).subscribe({
       next: () => {
         this.refreshCustomerDetails(session.customerId);
         this.closeSaleModal();
@@ -806,29 +835,40 @@ export class SessionsPageComponent {
     return purchases.filter((purchase) => new Date(purchase.soldAt).toDateString() === today);
   }
 
-  todayEntries(details: CustomerDetails): SessionDetailEntry[] {
-    const today = new Date().toDateString();
-    const allPurchases = details.purchases.map((purchase) => ({
+  sessionEntries(session: CafeSession, details: CustomerDetails): SessionDetailEntry[] {
+    const sessionStart = new Date(session.startedAt).getTime();
+    const sessionEnd = session.endedAt ? new Date(session.endedAt).getTime() : Number.POSITIVE_INFINITY;
+    const uniquePurchases = Array.from(new Map(details.purchases.map((purchase) => [purchase.saleId, purchase] as const)).values());
+    const allPurchases = uniquePurchases.map((purchase) => ({
       kind: 'purchase' as const,
       saleIds: [purchase.saleId],
       debtIds: [],
+      sessionId: purchase.sessionId,
       label: purchase.label,
+      debtLabel: purchase.debtLabel,
       occurredAt: purchase.soldAt,
       amount: purchase.totalAmount,
       openDebt: purchase.openDebt,
     }));
-    const purchases = allPurchases
-      .filter((purchase) => new Date(purchase.occurredAt).toDateString() === today)
+    const sessionPurchases = allPurchases
+      .filter((purchase) => {
+        if (purchase.sessionId) {
+          return purchase.sessionId === session.sessionId;
+        }
+        const occurredAt = new Date(purchase.occurredAt).getTime();
+        return occurredAt >= sessionStart && occurredAt <= sessionEnd;
+      })
       .map((purchase) => ({
         kind: 'purchase' as const,
         saleIds: purchase.saleIds,
         debtIds: [],
         label: purchase.label,
+        debtLabel: purchase.debtLabel,
         occurredAt: purchase.occurredAt,
         amount: purchase.amount,
         openDebt: purchase.openDebt,
       }));
-    const debts = details.debts
+    const openDebts = details.debts
       .filter((debt) => debt.status === 'OPEN')
       .map((debt) => ({
         kind: 'debt' as const,
@@ -840,27 +880,25 @@ export class SessionsPageComponent {
         amount: debt.amount,
         openDebt: true,
       }));
-    const mergedPurchases = purchases.map((purchase) => {
-      const matchedDebt = debts.find((debt) => this.shouldMergeDebtIntoPurchase(debt, purchase));
-      return matchedDebt
-        ? {
-            ...purchase,
-            kind: 'debt' as const,
-            debtIds: matchedDebt.debtIds,
-            occurredAt: matchedDebt.occurredAt,
-            openDebt: true,
-          }
-        : purchase;
+
+    const mergedPurchases = sessionPurchases.map((purchase) => {
+      const matchedDebt = openDebts.find((debt) => this.isDebtLinkedToPurchase(debt, purchase));
+      return {
+        ...purchase,
+        kind: purchase.openDebt || matchedDebt ? 'debt' as const : 'purchase' as const,
+        debtIds: matchedDebt?.debtIds ?? [],
+        openDebt: purchase.openDebt || !!matchedDebt,
+      };
     });
-    const remainingDebts = debts.filter((debt) => !purchases.some((purchase) => this.shouldMergeDebtIntoPurchase(debt, purchase)));
+    const remainingDebts = openDebts.filter((debt) => !sessionPurchases.some((purchase) => this.isDebtLinkedToPurchase(debt, purchase)));
     const relabeledDebts = remainingDebts.map((debt) => {
       const matchedPurchase = allPurchases.find((purchase) => this.isDebtLinkedToPurchase(debt, purchase));
       return matchedPurchase
-        ? { ...debt, label: matchedPurchase.label, saleIds: matchedPurchase.saleIds }
+        ? { ...debt, label: matchedPurchase.label, saleIds: matchedPurchase.saleIds, debtLabel: matchedPurchase.debtLabel }
         : debt;
     });
 
-    return this.groupDebtEntries([...mergedPurchases, ...relabeledDebts])
+    return [...mergedPurchases, ...relabeledDebts]
       .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
   }
 
@@ -888,57 +926,122 @@ export class SessionsPageComponent {
   }
 
   formatRemaining(session: CafeSession): string {
-    return this.formatSeconds(this.liveRemainingSeconds(session));
+    return this.formatSeconds(this.liveDisplayRemainingSeconds(session));
   }
 
-  sessionState(session: CafeSession): 'En cours' | 'Pause' | 'Paye' {
+  sessionState(session: CafeSession): 'En cours' | 'Pause' | 'A payer' | 'Terminee' {
+    if (session.paid) {
+      return 'Terminee';
+    }
+    if (session.endedAt) {
+      return 'A payer';
+    }
     if (session.paused) {
       return 'Pause';
     }
-    return session.paid && Number(session.openDebtAmount ?? 0) <= 0.001 ? 'Paye' : 'En cours';
+    return 'En cours';
   }
 
   customerTypeLabel(type: string): string {
-    return type === 'SUBSCRIBER' ? 'Abonne' : 'Client';
+    return type === 'SUBSCRIBER' || type.toLowerCase().includes('abonn') ? 'Abonne' : 'Client';
   }
 
   customerTypeChipClass(type: string): string {
-    return type === 'SUBSCRIBER' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
+    return this.customerTypeLabel(type) === 'Abonne' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
   }
 
-  stopDialogPurchaseAmount(session: CafeSession): number {
-    const details = this.stopDialogDetails();
-    if (!details) {
-      return Number(session.purchasesAmount ?? 0);
+  private hasCurrentSession(customerId: string): boolean {
+    return this.current().some((session) => session.customerId === customerId);
+  }
+
+  canPauseOrResume(session: CafeSession): boolean {
+    return !session.endedAt;
+  }
+
+  canStop(session: CafeSession): boolean {
+    return !session.endedAt;
+  }
+
+  canPay(session: CafeSession): boolean {
+    return !!session.endedAt && !session.paid;
+  }
+
+  isAwaitingPayment(session: CafeSession): boolean {
+    return this.sessionState(session) === 'A payer';
+  }
+
+  hasOpenDebt(session: CafeSession): boolean {
+    return Number(session.openDebtAmount ?? 0) > 0.001;
+  }
+
+  addPaymentOffer(): void {
+    const offerId = this.paymentResolutionForm.controls.offerToAddId.value;
+    if (!offerId) {
+      this.error.set('Choisis un abonnement a ajouter.');
+      return;
     }
-    const today = new Date().toDateString();
-    return details.purchases
-      .filter((purchase) => new Date(purchase.soldAt).toDateString() === today)
-      .filter((purchase) => !purchase.openDebt)
-      .reduce((total, purchase) => total + Number(purchase.totalAmount ?? 0), 0);
+    this.paymentOfferIds.update((offerIds) => [...offerIds, offerId]);
+    this.paymentResolutionForm.patchValue({ offerToAddId: '' });
+    this.error.set('');
   }
 
-  stopDialogOpenDebts() {
-    const details = this.stopDialogDetails();
-    if (!details) {
-      return [];
+  removePaymentOffer(index: number): void {
+    this.paymentOfferIds.update((offerIds) => offerIds.filter((_, currentIndex) => currentIndex !== index));
+  }
+
+  paymentDialogPurchaseAmount(session: CafeSession): number {
+    return Math.max(0, Number(session.totalAmountDue ?? 0) - this.paymentDialogBaseConnectionAmount(session));
+  }
+
+  paymentSelectedOffers(): SubscriptionOffer[] {
+    return this.paymentOfferIds()
+      .map((offerId) => this.offers().find((offer) => offer.offerId === offerId) ?? null)
+      .filter((offer): offer is SubscriptionOffer => offer != null);
+  }
+
+  paymentDialogRawOvertimeMinutes(session: CafeSession): number {
+    if (session.customerType !== 'SUBSCRIBER') {
+      return 0;
     }
-    return details.debts.filter((debt) => debt.status === 'OPEN');
+    return Math.max(0, Number(session.consumedMinutes ?? 0) - Number(session.remainingMinutes ?? 0));
   }
 
-  stopDialogDebtAmount(): number {
-    return this.stopDialogOpenDebts().reduce((total, debt) => total + Number(debt.amount ?? 0), 0);
+  paymentDialogOvertimeMinutes(session: CafeSession): number {
+    if (session.customerType !== 'SUBSCRIBER') {
+      return 0;
+    }
+    const selectedOfferMinutes = this.paymentSelectedOffers().reduce((total, offer) => total + offer.includedMinutes, 0);
+    return Math.max(0, Number(session.consumedMinutes ?? 0) - (Number(session.remainingMinutes ?? 0) + selectedOfferMinutes));
   }
 
-  stopDialogTotalAmount(session: CafeSession): number {
-    return Number(session.calculatedPrice ?? 0) + this.stopDialogPurchaseAmount(session);
+  paymentDialogConnectionAmount(session: CafeSession): number {
+    if (session.customerType !== 'SUBSCRIBER') {
+      return this.paymentDialogBaseConnectionAmount(session);
+    }
+    return this.calculateConnectionPrice(this.paymentDialogOvertimeMinutes(session));
   }
 
-  toggleEntryDebt(entry: SessionDetailEntry, event: Event): void {
+  paymentDialogSubscriptionImmediateAmount(): number {
+    const selectedOffers = this.paymentSelectedOffers();
+    if (selectedOffers.length === 0 || this.paymentResolutionForm.controls.createSubscriptionDebt.value) {
+      return 0;
+    }
+    return selectedOffers.reduce((total, offer) => total + Number(offer.price ?? 0), 0);
+  }
+
+  paymentDialogTotalAmount(session: CafeSession): number {
+    return this.paymentDialogConnectionAmount(session) + this.paymentDialogPurchaseAmount(session) + this.paymentDialogSubscriptionImmediateAmount();
+  }
+
+  private paymentDialogBaseConnectionAmount(session: CafeSession): number {
+    return Number(session.calculatedPrice ?? 0);
+  }
+
+  toggleEntryDebt(session: CafeSession, entry: SessionDetailEntry, event: Event): void {
     const checked = (event.target as HTMLInputElement).checked;
     const requests = checked
       ? entry.saleIds.map((saleId) => this.customersApi.createDebtFromSale(saleId))
-      : entry.debtIds.map((debtId) => this.customersApi.settleDebt(debtId));
+      : entry.debtIds.map((debtId) => this.customersApi.reattachDebtToSession(debtId, session.sessionId));
 
     if (requests.length === 0) {
       (event.target as HTMLInputElement).checked = entry.openDebt;
@@ -952,16 +1055,17 @@ export class SessionsPageComponent {
     }
 
     this.logger.info('sessions-ui', 'Toggling debt state from session detail', {
-      action: checked ? 'create-debt' : 'settle-debt',
+      action: checked ? 'create-debt' : 'reattach-to-session',
+      sessionId: session.sessionId,
       label: entry.label,
       saleCount: entry.saleIds.length,
       debtCount: entry.debtIds.length,
     });
     forkJoin(requests).subscribe({
       next: () => {
-        this.notice.set(checked ? 'Dette creee.' : 'Dette reglee.');
+        this.notice.set(checked ? 'Ligne passee en dette.' : 'Dette retransformee en achat de la session.');
         this.logger.info('sessions-ui', 'Debt state updated from session detail', {
-          action: checked ? 'create-debt' : 'settle-debt',
+          action: checked ? 'create-debt' : 'reattach-to-session',
           requestCount: requests.length,
         });
         this.refreshAfterDebtChange();
@@ -969,12 +1073,32 @@ export class SessionsPageComponent {
       error: (error: HttpErrorResponse) => {
         (event.target as HTMLInputElement).checked = entry.openDebt;
         this.logger.warn('sessions-ui', 'Debt state update failed from session detail', {
-          action: checked ? 'create-debt' : 'settle-debt',
+          action: checked ? 'create-debt' : 'reattach-to-session',
           requestCount: requests.length,
           error,
         });
-        this.error.set(this.resolveHttpError(error, checked ? 'Creation de dette impossible' : 'Reglement de dette impossible'));
+        this.error.set(this.resolveHttpError(error, checked ? 'Creation de dette impossible' : 'Reintegration de la dette impossible'));
       },
+    });
+  }
+
+  canDeleteSubscriptionEntry(session: CafeSession, entry: SessionDetailEntry): boolean {
+    return !!session.endedAt && !session.paid && entry.saleIds.length === 1 && !!entry.debtLabel && entry.debtLabel.startsWith('Vente abonnement du ');
+  }
+
+  deleteSubscriptionEntry(session: CafeSession, entry: SessionDetailEntry): void {
+    const saleId = entry.saleIds[0];
+    if (!saleId) {
+      this.error.set('Suppression impossible pour cette ligne.');
+      return;
+    }
+    this.salesApi.deleteSubscriptionSale(saleId).subscribe({
+      next: () => {
+        this.notice.set('Abonnement retire de la session.');
+        this.refreshCustomerDetails(session.customerId);
+        this.reload();
+      },
+      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Suppression de l abonnement impossible')),
     });
   }
 
@@ -994,101 +1118,37 @@ export class SessionsPageComponent {
     return this.formatEntryLabel(label);
   }
 
-  private isSameDebtAsPurchase(debt: SessionDetailEntry, purchase: SessionDetailEntry): boolean {
-    if (debt.kind !== 'debt' || purchase.kind !== 'purchase') {
-      return false;
-    }
-    if (Math.abs(debt.amount - purchase.amount) > 0.001) {
-      return false;
-    }
-    return this.toMinuteKey(debt.occurredAt) === this.toMinuteKey(purchase.occurredAt);
-  }
-
-  private shouldMergeDebtIntoPurchase(debt: SessionDetailEntry, purchase: SessionDetailEntry): boolean {
-    return this.isDebtLinkedToPurchase(debt, purchase) && new Date(purchase.occurredAt).toDateString() === new Date().toDateString();
-  }
-
-  private toDayKey(value: string): string {
-    const date = new Date(value);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
   private isDebtLinkedToPurchase(debt: SessionDetailEntry, purchase: SessionDetailEntry): boolean {
     if (debt.kind !== 'debt' || purchase.kind !== 'purchase') {
       return false;
     }
-    if (Math.abs(debt.amount - purchase.amount) > 0.001) {
-      return false;
-    }
-    const saleMinuteKey = this.saleMinuteKeyFromDebtLabel(debt.rawLabel);
-    if (!saleMinuteKey) {
-      return false;
-    }
-    return saleMinuteKey === this.toMinuteKey(purchase.occurredAt);
-  }
-
-  private saleMinuteKeyFromDebtLabel(label?: string): string | null {
-    if (!label) {
-      return null;
-    }
-    const isoMatch = label.match(/du\s(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
-    if (isoMatch) {
-      return this.toMinuteKey(isoMatch[1]);
-    }
-    const frMatch = label.match(/du\s(\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2})/);
-    if (!frMatch) {
-      return null;
-    }
-    const [datePart, timePart] = frMatch[1].split(' ');
-    const [day, month, year] = datePart.split('/');
-    return `${year}-${month}-${day}-${timePart.slice(0, 2)}-${timePart.slice(3, 5)}`;
-  }
-
-  private groupDebtEntries(entries: SessionDetailEntry[]): SessionDetailEntry[] {
-    const grouped = new Map<string, SessionDetailEntry>();
-    for (const entry of entries) {
-      if (!entry.openDebt) {
-        grouped.set(`purchase-${entry.saleIds.join(',')}-${entry.occurredAt}`, entry);
-        continue;
-      }
-      const key = `debt-${entry.label.toLowerCase()}`;
-      const existing = grouped.get(key);
-      if (!existing) {
-        grouped.set(key, { ...entry });
-        continue;
-      }
-      grouped.set(key, {
-        ...existing,
-        saleIds: [...new Set([...existing.saleIds, ...entry.saleIds])],
-        debtIds: [...new Set([...existing.debtIds, ...entry.debtIds])],
-        amount: existing.amount + entry.amount,
-        occurredAt: new Date(existing.occurredAt).getTime() >= new Date(entry.occurredAt).getTime() ? existing.occurredAt : entry.occurredAt,
-      });
-    }
-    return [...grouped.values()];
-  }
-
-  private toMinuteKey(value: string): string {
-    const date = new Date(value);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}-${hours}-${minutes}`;
+    return !!debt.rawLabel && !!purchase.debtLabel
+      && debt.rawLabel === purchase.debtLabel
+      && Math.abs(debt.amount - purchase.amount) <= 0.001;
   }
 
   private liveConsumedSeconds(session: CafeSession): number {
+    if (session.endedAt) {
+      return Math.max(0, session.consumedSeconds);
+    }
     const observedAt = this.sessionObservedAt()[session.sessionId] ?? this.now();
     const extraSeconds = session.paused ? 0 : Math.max(0, Math.floor((this.now() - observedAt) / 1000));
     return Math.max(0, session.consumedSeconds + extraSeconds);
   }
 
   private liveRemainingSeconds(session: CafeSession): number {
+    if (session.endedAt) {
+      return Math.max(0, session.remainingMinutes * 60 - Math.max(0, session.consumedSeconds));
+    }
     return Math.max(0, session.remainingMinutes * 60 - this.liveConsumedSeconds(session));
+  }
+
+  private liveDisplayRemainingSeconds(session: CafeSession): number {
+    const displayRemainingMinutes = Number(session.displayRemainingMinutes ?? session.remainingMinutes ?? 0);
+    if (session.endedAt) {
+      return Math.max(0, displayRemainingMinutes * 60);
+    }
+    return Math.max(0, displayRemainingMinutes * 60 - this.liveConsumedSeconds(session));
   }
 
   private formatSeconds(totalSeconds: number): string {
@@ -1125,8 +1185,51 @@ export class SessionsPageComponent {
     return Math.max(1, Math.ceil(total / pageSize));
   }
 
-  private stopDialogDetails(): CustomerDetails | null {
-    const session = this.stopTargetSession();
+  private calculateConnectionPrice(minutes: number): number {
+    if (minutes <= 0) {
+      return 0;
+    }
+    const tiers = this.pricingTiers();
+    if (tiers.length === 0) {
+      return 0;
+    }
+    const sortedTiers = [...tiers].sort((left, right) => left.durationMinutes - right.durationMinutes);
+    const maxDuration = sortedTiers[sortedTiers.length - 1].durationMinutes;
+    const limit = minutes + maxDuration;
+    const prices: Array<number | null> = Array.from({ length: limit + 1 }, () => null);
+    prices[0] = 0;
+
+    for (let coveredMinutes = 1; coveredMinutes <= limit; coveredMinutes += 1) {
+      let bestPrice: number | null = null;
+      for (const tier of sortedTiers) {
+        const previousMinutes = coveredMinutes - tier.durationMinutes;
+        if (previousMinutes < 0) {
+          continue;
+        }
+        const previousPrice = prices[previousMinutes];
+        if (previousPrice == null) {
+          continue;
+        }
+        const candidate = previousPrice + Number(tier.price);
+        if (bestPrice == null || candidate < bestPrice) {
+          bestPrice = candidate;
+        }
+      }
+      prices[coveredMinutes] = bestPrice;
+    }
+
+    let bestPrice: number | null = null;
+    for (let coveredMinutes = minutes; coveredMinutes <= limit; coveredMinutes += 1) {
+      const candidate = prices[coveredMinutes];
+      if (candidate != null && (bestPrice == null || candidate < bestPrice)) {
+        bestPrice = candidate;
+      }
+    }
+    return bestPrice ?? 0;
+  }
+
+  private paymentDialogDetails(): CustomerDetails | null {
+    const session = this.payTargetSession();
     if (!session) {
       return null;
     }
@@ -1150,15 +1253,8 @@ export class SessionsPageComponent {
   private refreshAfterDebtChange(): void {
     const customerIds = new Set<string>();
     const currentSessionId = this.expandedSessionId();
-    const daySessionId = this.expandedDaySessionId();
     if (currentSessionId) {
       const session = this.current().find((item) => item.sessionId === currentSessionId);
-      if (session) {
-        customerIds.add(session.customerId);
-      }
-    }
-    if (daySessionId) {
-      const session = this.day().find((item) => item.sessionId === daySessionId);
       if (session) {
         customerIds.add(session.customerId);
       }
@@ -1178,9 +1274,12 @@ export class SessionsPageComponent {
           ...this.sessionDetails(),
           [customerId]: details,
         });
-        const entries = this.todayEntries(details);
-        this.logger.debug('sessions-ui', 'Session detail normalized for day entries', {
+        const currentSessionId = this.expandedSessionId();
+        const currentSession = currentSessionId ? this.current().find((item) => item.sessionId === currentSessionId) ?? null : null;
+        const entries = currentSession ? this.sessionEntries(currentSession, details) : [];
+        this.logger.debug('sessions-ui', 'Session detail normalized for session entries', {
           customerId,
+          sessionId: currentSession?.sessionId,
           purchaseCount: details.purchases.length,
           debtCount: details.debts.length,
           normalizedEntryCount: entries.length,

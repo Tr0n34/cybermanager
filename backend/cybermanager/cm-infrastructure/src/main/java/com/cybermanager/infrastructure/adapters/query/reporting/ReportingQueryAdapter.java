@@ -65,8 +65,8 @@ public class ReportingQueryAdapter implements DayHistoryQuery {
                     return new DayCustomerHistoryView(
                             customer.id,
                             customer.name,
-                            "SUBSCRIBER".equals(customer.type) ? "Abonne" : "Client",
-                            customerSessions.stream().mapToInt(session -> session.consumedMinutes == null ? 0 : session.consumedMinutes).sum(),
+                            customer.type,
+                            customerSessions.stream().mapToInt(this::resolveConsumedMinutes).sum(),
                             totalSales,
                             customerDebtTotal,
                             totalSales,
@@ -133,18 +133,36 @@ public class ReportingQueryAdapter implements DayHistoryQuery {
         return events;
     }
 
+    private int resolveConsumedMinutes(CafeSessionJpaEntity session) {
+        if (session.consumedMinutes != null && session.consumedMinutes > 0) {
+            return session.consumedMinutes;
+        }
+        if (session.consumedSeconds != null && session.consumedSeconds > 0) {
+            return Math.max(1, (int) Math.ceil(session.consumedSeconds / 60.0));
+        }
+        if (session.startedAt == null) {
+            return 0;
+        }
+        LocalDateTime end = session.endedAt == null ? LocalDateTime.now() : session.endedAt;
+        long durationMinutes = java.time.Duration.between(session.startedAt, end).toMinutes();
+        int pausedMinutes = session.pausedMinutes == null ? 0 : session.pausedMinutes;
+        return Math.max(0, (int) durationMinutes - pausedMinutes);
+    }
+
     private String resolveSessionState(List<CafeSessionJpaEntity> sessions) {
+        boolean hasPausedSession = sessions.stream().anyMatch(session -> session.endedAt == null && session.pausedAt != null);
+        if (hasPausedSession) {
+            return "Pause";
+        }
+
+        boolean hasOpenSession = sessions.stream().anyMatch(session -> session.endedAt == null);
+        if (hasOpenSession) {
+            return "En cours";
+        }
+
         return sessions.stream()
                 .max(Comparator.comparing(session -> session.startedAt))
-                .map(session -> {
-                    if (session.endedAt == null && session.pausedAt != null) {
-                        return "Pause";
-                    }
-                    if (session.endedAt == null) {
-                        return "En cours";
-                    }
-                    return Boolean.TRUE.equals(session.paid) ? "Paye" : "Terminee";
-                })
+                .map(session -> Boolean.TRUE.equals(session.paid) ? "Paye" : "Terminee")
                 .orElse("Terminee");
     }
 

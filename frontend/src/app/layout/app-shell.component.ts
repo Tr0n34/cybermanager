@@ -16,15 +16,14 @@ import { SessionService } from '../core/services/session.service';
         </div>
         <nav>
           <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+          <a routerLink="/sessions" routerLinkActive="active">Sessions</a>
           <a routerLink="/users" routerLinkActive="active">Utilisateurs</a>
           <a routerLink="/products" routerLinkActive="active">Produits</a>
           <a routerLink="/subscription-offers" routerLinkActive="active">Abonnements</a>
           <a routerLink="/customers" routerLinkActive="active">Clients</a>
           <a routerLink="/sales" routerLinkActive="active">Ventes</a>
           <a routerLink="/sales/pricing" routerLinkActive="active">Tarifs temps</a>
-          <a routerLink="/sessions" routerLinkActive="active">Sessions</a>
           <a routerLink="/debts" routerLinkActive="active">Dettes</a>
-          <a routerLink="/monitoring" routerLinkActive="active">Monitoring</a>
           <a routerLink="/reporting" routerLinkActive="active">Historique</a>
         </nav>
         <section class="profile" *ngIf="session.user() as user">

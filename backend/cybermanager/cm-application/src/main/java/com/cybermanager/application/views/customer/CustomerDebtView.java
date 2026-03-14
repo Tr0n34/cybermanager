@@ -7,6 +7,7 @@ import java.util.UUID;
 public record CustomerDebtView(
         UUID debtId,
         String label,
+        String comment,
         BigDecimal amount,
         String status,
         LocalDateTime createdAt,

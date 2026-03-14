@@ -61,6 +61,8 @@ Afficher une vue operationnelle compacte de la journee avec detail client, etats
 
 - la liste retourne `customerId`, `name`, `type`, `remainingMinutes`, `consumedMinutes`, `purchasesTotal`, `debtTotal`, `collectedTotal`, `state`
 - le detail retourne `sales`, `sessions`, `totalCollected`, `totalDebtCreated`
+- chaque ligne de vente du detail retourne aussi si elle est associee a une dette ouverte
+- chaque session du detail retourne un libelle, une date de demarrage et une date d'arret
 - les montants sont deja calcules cote backend avec des regles metier coherentes pour les dettes ouvertes
 
 ## Frontend
@@ -74,8 +76,12 @@ Afficher une vue operationnelle compacte de la journee avec detail client, etats
 - l'ecran affiche en tete un encart `Argent encaisse` et un encart `Dette creee`
 - les encarts du haut sont calcules sur la liste globale affichee, pas sur le detail selectionne
 - la liste affiche au minimum `Client`, `Type`, `Temps`, `Achats`, `Dette`, `Etat`
+- la liste propose des filtres `client`, `etat`, `dette oui/non` et `clients par page`
+- la liste utilise une pagination classique `Precedent` / `Suivant`
 - la colonne de detail a droite reste compacte et ne s'etire pas a la hauteur de la liste
 - un bouton `Detail` charge le detail dans la colonne de droite
+- le detail affiche au maximum les `10 derniers produits` et les `10 dernieres sessions` par defaut
+- un bouton `Historique complet` permet d'afficher tout l'historique du jour avec pagination independante pour les ventes et les sessions
 - les etats vides et les erreurs de chargement sont visibles dans la page
 
 ## Criteres d'acceptation

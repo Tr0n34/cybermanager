@@ -29,6 +29,7 @@ public class SaleRepositoryAdapter implements SaleRepository {
         SaleJpaEntity entity = new SaleJpaEntity();
         entity.id = sale.id().value();
         entity.customerId = sale.customerId().value();
+        entity.sessionId = sale.sessionId();
         entity.type = sale.type().name();
         entity.soldAt = sale.soldAt();
         entity.totalAmount = sale.totalAmount().amount();
@@ -50,6 +51,11 @@ public class SaleRepositoryAdapter implements SaleRepository {
     }
 
     @Override
+    public void deleteById(SaleId saleId) {
+        repository.deleteById(saleId.value());
+    }
+
+    @Override
     public List<Sale> findByDay(LocalDate date) {
         return repository.findBySoldAtBetween(date.atStartOfDay(), date.plusDays(1).atStartOfDay()).stream().map(this::toDomain).toList();
     }
@@ -63,6 +69,7 @@ public class SaleRepositoryAdapter implements SaleRepository {
         return new Sale(
                 new SaleId(entity.id),
                 new CustomerId(entity.customerId),
+                entity.sessionId,
                 SaleType.valueOf(entity.type),
                 entity.soldAt,
                 entity.lines.stream().map(line -> new SaleLine(line.label, line.quantity, new Money(line.unitPrice), new Money(line.totalPrice))).toList(),

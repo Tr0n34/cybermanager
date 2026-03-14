@@ -1,6 +1,7 @@
 export interface DebtItem {
   debtId: string;
   label: string;
+  comment: string;
   amount: number;
   status: 'OPEN' | 'SETTLED';
   createdAt: string;

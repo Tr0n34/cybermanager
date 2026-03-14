@@ -27,6 +27,11 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 - ajout d'un filtre reactif par nom
 - ajout d'un encart de synthese `Argent encaisse` / `Dette creee`
 - alignement du detail avec le monitoring : ventes structurees et evenements de session en francais
+- ajout d'un panneau droit `Historique` distinct de la liste des resultats
+- ajout d'un bloc `Detail` place sous `Historique` dans la colonne de droite
+- ajout d'une pagination frontend avec `Clients par page` et navigation `Precedent / Suivant`
+- ajout de la liste des clients non termines dans le panneau `Historique`
+- affichage du type abonne / client sous forme de badge et correction du temps total de connexion
 
 ## Bounded context
 
@@ -45,6 +50,8 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 - pour chaque client, il faut retrouver les durees d'usage d'un poste
 - les donnees d'une journee cloturee ne doivent pas etre alterees dans leur restitution metier
 - le filtre par nom reagit des les premieres lettres
+- la taille de page de la liste historique est configurable
+- la pagination doit rester accessible depuis le bandeau d'actions sous le titre
 
 ## Backend
 
@@ -99,6 +106,10 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 - les erreurs de chargement sont visibles dans la page
 - la recherche par nom filtre immediatement la liste sans clic supplementaire
 - la colonne de detail a droite reste compacte et alignee en haut
+- le bouton `Filtres` est place sous le titre `Historique journalier`
+- la colonne de droite affiche d'abord le cadre `Historique`, puis le bloc `Detail` en dessous lorsqu'un client est selectionne
+- le panneau `Historique` affiche `Argent encaisse`, `Dettes actuelles` et la liste des clients non termines
+- la liste principale est paginee avec `Clients par page`, `Precedent` et `Suivant`
 
 ## Criteres d'acceptation
 
@@ -107,4 +118,5 @@ Permettre la consultation de l'historique d'une journee avec le detail des conso
 - les achats produits, abonnements et durees d'usage sont visibles
 - le detail d'un client sur la journee est consultable
 - l'ecran garde une navigation coherente entre filtre par date, liste et detail
+- l'utilisateur peut limiter le nombre de clients affiches par page et naviguer entre les pages
 - les details de reporting sont approfondis dans `F-015-historical-reporting-by-period.md`

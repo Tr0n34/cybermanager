@@ -10,10 +10,12 @@ public final class CustomerDtos {
     }
 
     public record CustomerRequest(String name, String type, UUID subscriptionOfferId) {}
-    public record ConvertToSubscriberRequest(UUID subscriptionOfferId, boolean deductCurrentSession) {}
+    public record ConvertToSubscriberRequest(UUID subscriptionOfferId, boolean deductCurrentSession, UUID sessionId) {}
     public record CustomerResponse(UUID customerId, String name, String type, String status, int remainingMinutes, BigDecimal openDebtAmount) {}
-    public record CustomerPurchaseResponse(UUID saleId, String type, String label, LocalDateTime soldAt, BigDecimal totalAmount, boolean openDebt) {}
-    public record CustomerDebtResponse(UUID debtId, String label, BigDecimal amount, String status, LocalDateTime createdAt, LocalDateTime settledAt) {}
+    public record CustomerPurchaseResponse(UUID saleId, UUID sessionId, String type, String label, String debtLabel, LocalDateTime soldAt, BigDecimal totalAmount, boolean openDebt) {}
+    public record CustomerDebtResponse(UUID debtId, String label, String comment, BigDecimal amount, String status, LocalDateTime createdAt, LocalDateTime settledAt) {}
+    public record SettleDebtRequest(String comment) {}
+    public record ReattachDebtToSessionRequest(UUID sessionId) {}
     public record CustomerDetailsResponse(
             UUID customerId,
             String name,

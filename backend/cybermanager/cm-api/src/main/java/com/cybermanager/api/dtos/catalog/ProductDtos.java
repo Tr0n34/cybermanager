@@ -7,7 +7,7 @@ public final class ProductDtos {
     private ProductDtos() {
     }
 
-    public record ProductRequest(String name, BigDecimal price, String category) {}
-    public record ProductResponse(UUID productId, String name, BigDecimal price, String category, String status) {}
+    public record ProductRequest(String name, BigDecimal price, String category, String description) {}
+    public record ProductResponse(UUID productId, String name, BigDecimal price, String category, String description, String status) {}
 }
 

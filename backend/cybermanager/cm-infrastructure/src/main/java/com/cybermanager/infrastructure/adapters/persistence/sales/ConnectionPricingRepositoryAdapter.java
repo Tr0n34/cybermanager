@@ -8,7 +8,10 @@ import com.cybermanager.infrastructure.repositories.persistence.sales.Connection
 import com.cybermanager.domain.model.shared.Money;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Component
 public class ConnectionPricingRepositoryAdapter implements ConnectionPricingRepository {
@@ -20,23 +23,37 @@ public class ConnectionPricingRepositoryAdapter implements ConnectionPricingRepo
 
     @Override
     public ConnectionPricingRule save(ConnectionPricingRule rule) {
-        repository.deleteAllInBatch();
-        List<ConnectionPricingTierJpaEntity> entities = rule.tiers().stream()
+        List<ConnectionPricingTierJpaEntity> existingEntities = repository.findAllByOrderByDurationMinutesAsc();
+        var existingByDuration = existingEntities.stream()
+                .collect(Collectors.toMap(entity -> entity.durationMinutes, Function.identity()));
+        LocalDateTime now = LocalDateTime.now();
+
+        List<ConnectionPricingTierJpaEntity> entitiesToSave = rule.tiers().stream()
                 .map(tier -> {
-                    ConnectionPricingTierJpaEntity entity = new ConnectionPricingTierJpaEntity();
+                    ConnectionPricingTierJpaEntity existing = existingByDuration.remove(tier.durationMinutes());
+                    ConnectionPricingTierJpaEntity entity = existing == null ? new ConnectionPricingTierJpaEntity() : existing;
                     entity.durationMinutes = tier.durationMinutes();
                     entity.price = tier.price().amount();
+                    entity.createdAt = existing == null ? now : (existing.createdAt == null ? now : existing.createdAt);
+                    entity.updatedAt = now;
                     return entity;
                 })
                 .toList();
-        repository.saveAll(entities);
-        return rule;
+
+        if (!existingByDuration.isEmpty()) {
+          repository.deleteAll(existingByDuration.values());
+        }
+
+        List<ConnectionPricingTier> savedTiers = repository.saveAll(entitiesToSave).stream()
+                .map(this::toDomain)
+                .toList();
+        return new ConnectionPricingRule(savedTiers);
     }
 
     @Override
     public ConnectionPricingRule getCurrentRule() {
         List<ConnectionPricingTier> tiers = repository.findAllByOrderByDurationMinutesAsc().stream()
-                .map(entity -> new ConnectionPricingTier(entity.durationMinutes, new Money(entity.price)))
+                .map(this::toDomain)
                 .toList();
         if (tiers.isEmpty()) {
             return new ConnectionPricingRule(List.of(
@@ -46,6 +63,12 @@ public class ConnectionPricingRepositoryAdapter implements ConnectionPricingRepo
             ));
         }
         return new ConnectionPricingRule(tiers);
+    }
+
+    private ConnectionPricingTier toDomain(ConnectionPricingTierJpaEntity entity) {
+        LocalDateTime createdAt = entity.createdAt == null ? entity.updatedAt : entity.createdAt;
+        LocalDateTime updatedAt = entity.updatedAt == null ? createdAt : entity.updatedAt;
+        return new ConnectionPricingTier(entity.id, entity.durationMinutes, new Money(entity.price), createdAt, updatedAt);
     }
 }
 

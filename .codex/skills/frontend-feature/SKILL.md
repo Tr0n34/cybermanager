@@ -58,9 +58,13 @@ Utiliser cette skill lorsqu'une demande impacte principalement le frontend :
     - pour les pages CRUD de liste, standardiser les filtres dans un bloc `filters-grid collapsible` pilote par un bouton `Filtres` avec icone
     - utiliser une ouverture / fermeture progressive du bloc de filtres, avec animation legere, plus smooth que brutale, plutot qu'un rendu abrupt
     - les filtres CRUD doivent privilegier des champs compacts, alignes a gauche et dimensionnes selon le contenu attendu plutot qu'etires inutilement
+    - le bouton `Filtres` doit rester dans le bandeau d'actions sous le titre de page, pas perdu plus bas dans l'ecran
     - placer l'action de creation principale a cote du bouton `Filtres` (`Creer un nouvel ...`) plutot qu'au fond d'un panneau secondaire
     - eviter de dupliquer un bouton `Nouveau` dans la colonne de droite si l'action de creation principale existe deja en haut de page
     - pagination et taille de page configurable quand le volume peut croitre
+    - si une pagination existe, utiliser explicitement `Precedent` / `Suivant` avec indication `Page X / Y`
+    - quand la pagination existe, la navigation `Precedent` / `Suivant` doit partager la meme ligne d'action que le bouton `Filtres`
+    - les filtres de pagination (`Clients par page`, `Dettes par page`, etc.) doivent vivre dans le bloc `filters-grid`, pas dans le bandeau d'actions
     - panneaux lateraux ou accordions si le flux comptoir le demande
     - un panneau secondaire ouvert / ferme par bouton doit etre ferme par defaut si cela reduit la charge visuelle initiale
     - une modale de simulation ou de calcul frontend doit reprendre la logique metier backend existante si elle sert a previsualiser un resultat utilisateur
@@ -88,6 +92,8 @@ Utiliser cette skill lorsqu'une demande impacte principalement le frontend :
     - appels API coherents
     - filtres de liste coherents avec les autres CRUD frontend : bouton `Filtres`, panneau depliable, animation legere, action de creation visible
     - champs de filtre compactes et correctement calibres pour leur contenu
+    - pagination coherente avec le standard frontend si le volume justifie plusieurs pages
+    - boutons `Precedent` / `Suivant` bien positionnes sur la meme ligne d'action que `Filtres`
     - tout panneau secondaire ajoute a l'ecran respecte l'etat ouvert / ferme attendu par defaut
     - toute modale de calcul ou de simulation frontend retourne le meme resultat que la logique metier backend equivalente
     - requetes sortantes et reponses entrantes observables quand la feature l'exige

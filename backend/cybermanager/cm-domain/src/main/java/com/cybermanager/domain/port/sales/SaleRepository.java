@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface SaleRepository {
     Sale save(Sale sale);
     Optional<Sale> findById(SaleId saleId);
+    void deleteById(SaleId saleId);
     List<Sale> findByDay(LocalDate date);
     List<Sale> findByCustomerId(CustomerId customerId);
 }

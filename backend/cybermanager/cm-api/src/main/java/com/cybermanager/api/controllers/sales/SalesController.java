@@ -42,20 +42,26 @@ public class SalesController {
     @PostMapping("/api/sales/products")
     public ResponseEntity<SaleResponse> productSale(@RequestHeader("Authorization") String authorization, @RequestBody ProductSaleRequest request) {
         var actor = ApiSupport.actor(authorization, tokenReader);
-        var view = service.execute(new CreateProductSaleCommand(actor.email(), actor.roles(), request.customerId(), request.lines().stream().map(line -> new CreateProductSaleCommand.ProductSaleLineCommand(line.productId(), line.quantity())).toList(), request.createDebt()));
+        var view = service.execute(new CreateProductSaleCommand(actor.email(), actor.roles(), request.customerId(), request.sessionId(), request.lines().stream().map(line -> new CreateProductSaleCommand.ProductSaleLineCommand(line.productId(), line.quantity())).toList(), request.createDebt()));
         return ResponseEntity.ok(toResponse(view));
     }
 
     @PostMapping("/api/sales/subscriptions")
     public ResponseEntity<SaleResponse> subscriptionSale(@RequestHeader("Authorization") String authorization, @RequestBody SubscriptionSaleRequest request) {
         var actor = ApiSupport.actor(authorization, tokenReader);
-        return ResponseEntity.ok(toResponse(service.execute(new CreateSubscriptionSaleCommand(actor.email(), actor.roles(), request.customerId(), request.subscriptionOfferId(), request.createDebt()))));
+        return ResponseEntity.ok(toResponse(service.execute(new CreateSubscriptionSaleCommand(actor.email(), actor.roles(), request.customerId(), request.sessionId(), request.subscriptionOfferId(), request.createDebt()))));
+    }
+
+    @DeleteMapping("/api/sales/{id}/subscription-session")
+    public ResponseEntity<Void> deleteSubscriptionSale(@PathVariable("id") UUID id) {
+        service.execute(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/api/sales/connection-time")
     public ResponseEntity<SaleResponse> connectionSale(@RequestHeader("Authorization") String authorization, @RequestBody ConnectionTimeSaleRequest request) {
         var actor = ApiSupport.actor(authorization, tokenReader);
-        return ResponseEntity.ok(toResponse(service.execute(new CreateConnectionTimeSaleCommand(actor.email(), actor.roles(), request.customerId(), request.minutes(), request.createDebt()))));
+        return ResponseEntity.ok(toResponse(service.execute(new CreateConnectionTimeSaleCommand(actor.email(), actor.roles(), request.customerId(), request.sessionId(), request.minutes(), request.createDebt()))));
     }
 
     @PutMapping("/api/pricing/connection-time")
@@ -83,7 +89,7 @@ public class SalesController {
 
     private PricingResponse toPricingResponse(com.cybermanager.application.views.sales.ConnectionPricingView view) {
         return new PricingResponse(view.tiers().stream()
-                .map(tier -> new PricingTierResponse(tier.hours(), tier.minutes(), tier.durationMinutes(), tier.price()))
+                .map(tier -> new PricingTierResponse(tier.id(), tier.hours(), tier.minutes(), tier.durationMinutes(), tier.price(), tier.createdAt(), tier.updatedAt()))
                 .toList());
     }
 }

@@ -50,6 +50,11 @@ public class CafeSessionRepositoryAdapter implements CafeSessionRepository {
     }
 
     @Override
+    public List<CafeSession> findAll() {
+        return repository.findAll().stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public List<CafeSession> findActive() {
         return repository.findByEndedAtIsNull().stream().map(this::toDomain).toList();
     }

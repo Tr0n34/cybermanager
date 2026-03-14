@@ -18,6 +18,7 @@ public class SaleJpaEntity {
     @Id
     public UUID id;
     public UUID customerId;
+    public UUID sessionId;
     public String type;
     public LocalDateTime soldAt;
     public BigDecimal totalAmount;

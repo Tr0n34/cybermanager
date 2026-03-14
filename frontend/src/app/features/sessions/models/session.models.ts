@@ -4,6 +4,7 @@ export interface CafeSession {
   customerName: string;
   customerType: 'WALK_IN' | 'SUBSCRIBER';
   remainingMinutes: number;
+  displayRemainingMinutes: number;
   startedAt: string;
   endedAt: string | null;
   paused: boolean;

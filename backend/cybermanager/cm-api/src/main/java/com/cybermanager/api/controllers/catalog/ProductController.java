@@ -35,41 +35,41 @@ public class ProductController {
             @RequestParam(name = "status", required = false) String status,
             @RequestParam(name = "category", required = false) String category
     ) {
-        return ResponseEntity.ok(service.execute(new SearchProductsQuery(term, status, category)).stream().map(view -> new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.status())).toList());
+        return ResponseEntity.ok(service.execute(new SearchProductsQuery(term, status, category)).stream().map(view -> new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.description(), view.status())).toList());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> get(@PathVariable("id") UUID id) {
         var view = service.execute(new GetProductDetailsQuery(id));
-        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.status()));
+        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.description(), view.status()));
     }
 
     @PostMapping
     public ResponseEntity<ProductResponse> create(@RequestHeader("Authorization") String authorization, @RequestBody ProductRequest request) {
         var actor = ApiSupport.actor(authorization, tokenReader);
-        var view = service.execute(new CreateProductCommand(actor.email(), actor.roles(), request.name(), request.price(), request.category()));
-        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.status()));
+        var view = service.execute(new CreateProductCommand(actor.email(), actor.roles(), request.name(), request.price(), request.category(), request.description()));
+        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.description(), view.status()));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponse> update(@RequestHeader("Authorization") String authorization, @PathVariable("id") UUID id, @RequestBody ProductRequest request) {
         var actor = ApiSupport.actor(authorization, tokenReader);
-        var view = service.execute(new UpdateProductCommand(actor.email(), actor.roles(), id, request.name(), request.price(), request.category()));
-        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.status()));
+        var view = service.execute(new UpdateProductCommand(actor.email(), actor.roles(), id, request.name(), request.price(), request.category(), request.description()));
+        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.description(), view.status()));
     }
 
     @PutMapping("/{id}/activate")
     public ResponseEntity<ProductResponse> activate(@RequestHeader("Authorization") String authorization, @PathVariable("id") UUID id) {
         var actor = ApiSupport.actor(authorization, tokenReader);
         var view = service.execute(new ActivateProductCommand(actor.email(), actor.roles(), id));
-        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.status()));
+        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.description(), view.status()));
     }
 
     @PutMapping("/{id}/deactivate")
     public ResponseEntity<ProductResponse> deactivate(@RequestHeader("Authorization") String authorization, @PathVariable("id") UUID id) {
         var actor = ApiSupport.actor(authorization, tokenReader);
         var view = service.execute(new DeactivateProductCommand(actor.email(), actor.roles(), id));
-        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.status()));
+        return ResponseEntity.ok(new ProductResponse(view.productId(), view.name(), view.price(), view.category(), view.description(), view.status()));
     }
 
     @DeleteMapping("/{id}")

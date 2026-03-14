@@ -1,9 +1,12 @@
 package com.cybermanager.api.controllers.session;
 
 import com.cybermanager.api.dtos.session.SessionDtos.CurrentSessionsResponse;
+import com.cybermanager.api.dtos.session.SessionDtos.PaySessionRequest;
+import com.cybermanager.api.dtos.session.SessionDtos.RestartSessionsDayResponse;
 import com.cybermanager.api.dtos.session.SessionDtos.SessionResponse;
 import com.cybermanager.api.dtos.session.SessionDtos.StartSessionRequest;
-import com.cybermanager.api.dtos.session.SessionDtos.StopSessionRequest;
+import com.cybermanager.application.commands.session.PaySessionCommand;
+import com.cybermanager.application.commands.session.RestartSessionsDayCommand;
 import com.cybermanager.application.commands.session.StartSessionCommand;
 import com.cybermanager.application.commands.session.PauseSessionCommand;
 import com.cybermanager.application.commands.session.ResumeSessionCommand;
@@ -44,8 +47,18 @@ public class SessionController {
     }
 
     @PostMapping("/{id}/stop")
-    public ResponseEntity<SessionResponse> stop(@PathVariable("id") UUID id, @RequestBody(required = false) StopSessionRequest request) {
-        return ResponseEntity.ok(toResponse(service.execute(new StopSessionCommand(id, request != null && request.paid()))));
+    public ResponseEntity<SessionResponse> stop(@PathVariable("id") UUID id) {
+        return ResponseEntity.ok(toResponse(service.execute(new StopSessionCommand(id))));
+    }
+
+    @PostMapping("/{id}/pay")
+    public ResponseEntity<SessionResponse> pay(@PathVariable("id") UUID id, @RequestBody(required = false) PaySessionRequest request) {
+        return ResponseEntity.ok(toResponse(service.execute(new PaySessionCommand(
+                id,
+                request == null ? null : request.amountPaid(),
+                request == null || request.subscriptionOfferIds() == null ? List.of() : request.subscriptionOfferIds(),
+                request != null && request.createSubscriptionDebt()
+        ))));
     }
 
     @PostMapping("/{id}/pause")
@@ -58,6 +71,11 @@ public class SessionController {
         return ResponseEntity.ok(toResponse(service.execute(new ResumeSessionCommand(id))));
     }
 
+    @PostMapping("/restart-day")
+    public ResponseEntity<RestartSessionsDayResponse> restartDay() {
+        return ResponseEntity.ok(new RestartSessionsDayResponse(service.execute(new RestartSessionsDayCommand())));
+    }
+
     private SessionResponse toResponse(SessionView view) {
         return new SessionResponse(
                 view.sessionId(),
@@ -65,6 +83,7 @@ public class SessionController {
                 view.customerName(),
                 view.customerType(),
                 view.remainingMinutes(),
+                view.displayRemainingMinutes(),
                 view.workstation(),
                 view.startedAt(),
                 view.endedAt(),

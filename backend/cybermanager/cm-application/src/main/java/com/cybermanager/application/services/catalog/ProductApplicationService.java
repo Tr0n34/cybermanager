@@ -44,7 +44,7 @@ public class ProductApplicationService implements
 
     public ProductView execute(CreateProductCommand command) {
         ActorSupport.requireAdmin(command.actorRoles());
-        return toView(productRepository.save(Product.create(command.name(), new Money(command.price()), command.category())));
+        return toView(productRepository.save(Product.create(command.name(), new Money(command.price()), command.category(), command.description())));
     }
 
     @Override
@@ -52,7 +52,7 @@ public class ProductApplicationService implements
         ActorSupport.requireAdmin(command.actorRoles());
         Product product = productRepository.findById(new ProductId(command.productId()))
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
-        return toView(productRepository.save(product.update(command.name(), new Money(command.price()), command.category())));
+        return toView(productRepository.save(product.update(command.name(), new Money(command.price()), command.category(), command.description())));
     }
 
     @Override
@@ -94,7 +94,7 @@ public class ProductApplicationService implements
     }
 
     private ProductView toView(Product product) {
-        return new ProductView(product.id().value(), product.name(), product.price().amount(), product.category(), product.status().name());
+        return new ProductView(product.id().value(), product.name(), product.price().amount(), product.category(), product.description(), product.status().name());
     }
 }
 

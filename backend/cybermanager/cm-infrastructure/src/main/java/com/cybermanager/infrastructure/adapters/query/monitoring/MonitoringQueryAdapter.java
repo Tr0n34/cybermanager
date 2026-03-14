@@ -1,9 +1,9 @@
 package com.cybermanager.infrastructure.adapters.query.monitoring;
 
 import com.cybermanager.application.ports.monitoring.DailyMonitoringQuery;
+import com.cybermanager.application.services.shared.DateTimeLabelFormatter;
 import com.cybermanager.application.views.monitoring.DailyCustomerActivityView;
 import com.cybermanager.application.views.monitoring.DailyCustomerView;
-import com.cybermanager.infrastructure.entities.persistence.customer.DebtJpaEntity;
 import com.cybermanager.infrastructure.entities.persistence.sales.SaleJpaEntity;
 import com.cybermanager.infrastructure.entities.persistence.sales.SaleLineJpaEntity;
 import com.cybermanager.infrastructure.entities.persistence.session.CafeSessionJpaEntity;
@@ -16,15 +16,14 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 public class MonitoringQueryAdapter implements DailyMonitoringQuery {
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-
     private final CustomerJpaRepository customerRepository;
     private final SaleJpaRepository saleRepository;
     private final CafeSessionJpaRepository sessionRepository;
@@ -70,7 +69,7 @@ public class MonitoringQueryAdapter implements DailyMonitoringQuery {
                             customerSessions.stream().mapToInt(session -> session.consumedMinutes == null ? 0 : session.consumedMinutes).sum(),
                             purchasesTotal,
                             debtTotal,
-                            purchasesTotal,
+                            purchasesTotal.subtract(debtTotal),
                             resolveSessionState(customerSessions)
                     );
                 })
@@ -101,6 +100,9 @@ public class MonitoringQueryAdapter implements DailyMonitoringQuery {
         var debts = debtRepository.findByStatus("OPEN").stream()
                 .filter(debt -> debt.customerId.equals(customerId))
                 .toList();
+        Set<String> debtLabels = debts.stream()
+                .map(debt -> debt.label)
+                .collect(Collectors.toSet());
 
         BigDecimal totalDebtCreated = debts.stream()
                 .map(debt -> debt.amount)
@@ -108,35 +110,34 @@ public class MonitoringQueryAdapter implements DailyMonitoringQuery {
         BigDecimal salesTotal = sales.stream()
                 .map(sale -> sale.totalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalCollected = salesTotal;
+        BigDecimal totalCollected = salesTotal.subtract(totalDebtCreated);
 
         return new DailyCustomerActivityView(
                 customer.id,
                 customer.name,
                 sales.stream()
-                        .flatMap(sale -> sale.lines.stream())
-                        .map(this::toSaleActivity)
+                        .sorted(Comparator.comparing((SaleJpaEntity sale) -> sale.soldAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                        .flatMap(sale -> sale.lines.stream().map(line -> toSaleActivity(sale, line, debtLabels.contains(debtLabelForSale(sale)))))
                         .toList(),
-                sessions.stream().flatMap(session -> sessionEvents(session).stream()).toList(),
+                sessions.stream()
+                        .sorted(Comparator.comparing((CafeSessionJpaEntity session) -> session.startedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                        .map(this::toSessionActivity)
+                        .toList(),
                 totalCollected,
                 totalDebtCreated
         );
     }
 
-    private DailyCustomerActivityView.SaleActivityView toSaleActivity(SaleLineJpaEntity line) {
-        return new DailyCustomerActivityView.SaleActivityView(line.label, line.quantity, line.totalPrice);
+    private DailyCustomerActivityView.SaleActivityView toSaleActivity(SaleJpaEntity sale, SaleLineJpaEntity line, boolean debt) {
+        return new DailyCustomerActivityView.SaleActivityView(line.label, line.quantity, line.totalPrice, debt, sale.soldAt);
     }
 
-    private List<String> sessionEvents(CafeSessionJpaEntity session) {
-        var events = new java.util.ArrayList<String>();
-        events.add("Session demarree le " + format(session.startedAt));
-        if (session.pausedAt != null && session.endedAt == null) {
-            events.add("Session en pause depuis le " + format(session.pausedAt));
-        }
-        if (session.endedAt != null) {
-            events.add("Session arretee le " + format(session.endedAt));
-        }
-        return events;
+    private DailyCustomerActivityView.SessionActivityView toSessionActivity(CafeSessionJpaEntity session) {
+        return new DailyCustomerActivityView.SessionActivityView(
+                "Session du %s au %s".formatted(format(session.startedAt), format(session.endedAt)),
+                session.startedAt,
+                session.endedAt
+        );
     }
 
     private String resolveSessionState(List<CafeSessionJpaEntity> sessions) {
@@ -155,6 +156,19 @@ public class MonitoringQueryAdapter implements DailyMonitoringQuery {
     }
 
     private String format(LocalDateTime value) {
-        return value == null ? "-" : value.format(DATE_TIME_FORMATTER);
+        return value == null ? "-" : DateTimeLabelFormatter.format(value);
+    }
+
+    private String debtLabelForSale(SaleJpaEntity sale) {
+        return switch (sale.type) {
+            case "PRODUCTS" -> sale.lines.stream()
+                    .map(line -> line.quantity + " x " + line.label)
+                    .reduce((left, right) -> left + ", " + right)
+                    .map(label -> label + " du " + format(sale.soldAt))
+                    .orElse("Vente produits du " + format(sale.soldAt));
+            case "SUBSCRIPTION" -> "Vente abonnement du " + format(sale.soldAt);
+            case "CONNECTION_TIME" -> "Vente temps du " + format(sale.soldAt);
+            default -> "Vente du " + format(sale.soldAt);
+        };
     }
 }

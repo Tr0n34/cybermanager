@@ -13,7 +13,7 @@ export class DebtsApiService {
     return this.http.get<CustomerDebtSummary[]>(this.baseUrl);
   }
 
-  settle(debtId: string) {
-    return this.http.post<void>(`${this.baseUrl}/${debtId}/settle`, {});
+  settle(debtId: string, comment: string) {
+    return this.http.post<void>(`${this.baseUrl}/${debtId}/settle`, { comment });
   }
 }

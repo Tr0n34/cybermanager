@@ -9,6 +9,7 @@ public record DebtRecord(
         DebtId id,
         CustomerId customerId,
         String label,
+        String comment,
         Money amount,
         DebtStatus status,
         LocalDateTime createdAt,
@@ -20,16 +21,17 @@ public record DebtRecord(
         if (label == null || label.isBlank()) {
             throw new IllegalArgumentException("Debt label is required");
         }
+        comment = comment == null ? "" : comment.trim();
         Objects.requireNonNull(amount, "amount is required");
         Objects.requireNonNull(status, "status is required");
         Objects.requireNonNull(createdAt, "createdAt is required");
     }
 
     public static DebtRecord create(CustomerId customerId, String label, Money amount, LocalDateTime createdAt) {
-        return new DebtRecord(DebtId.newId(), customerId, label.trim(), amount, DebtStatus.OPEN, createdAt, null);
+        return new DebtRecord(DebtId.newId(), customerId, label.trim(), "", amount, DebtStatus.OPEN, createdAt, null);
     }
 
-    public DebtRecord settle(LocalDateTime settledAt) {
-        return new DebtRecord(id, customerId, label, amount, DebtStatus.SETTLED, createdAt, settledAt);
+    public DebtRecord settle(LocalDateTime settledAt, String comment) {
+        return new DebtRecord(id, customerId, label, comment, amount, DebtStatus.SETTLED, createdAt, settledAt);
     }
 }

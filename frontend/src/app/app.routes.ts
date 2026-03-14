@@ -4,7 +4,6 @@ import { authGuard } from './core/guards/auth.guard';
 import { guestGuard } from './core/guards/guest.guard';
 import { AppShellComponent } from './layout/app-shell.component';
 import { LoginPageComponent } from './features/auth/pages/login-page.component';
-import { DashboardPageComponent } from './features/dashboard/pages/dashboard-page.component';
 import { UsersPageComponent } from './features/users/pages/users-page.component';
 import { ProductsPageComponent } from './features/products/pages/products-page.component';
 import { SubscriptionOffersPageComponent } from './features/subscriptions/pages/subscription-offers-page.component';
@@ -29,7 +28,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
-      { path: 'dashboard', component: DashboardPageComponent },
+      { path: 'dashboard', component: MonitoringPageComponent },
       { path: 'users', component: UsersPageComponent },
       { path: 'products', component: ProductsPageComponent },
       { path: 'subscription-offers', component: SubscriptionOffersPageComponent },
@@ -39,7 +38,7 @@ export const routes: Routes = [
       { path: 'sessions', component: SessionsPageComponent },
       { path: 'sessions/settings', component: SessionDisplaySettingsPageComponent },
       { path: 'debts', component: DebtsPageComponent },
-      { path: 'monitoring', component: MonitoringPageComponent },
+      { path: 'monitoring', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'reporting', component: ReportingPageComponent },
     ],
   },

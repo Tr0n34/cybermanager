@@ -5,7 +5,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 
-import type { Customer, CustomerDetails } from '../models/customer.models';
+import type { Customer, CustomerDetails, CustomerPurchase } from '../models/customer.models';
 import { CustomersApiService } from '../services/customers-api.service';
 import type { Product } from '../../products/models/product.models';
 import { ProductsApiService } from '../../products/services/products-api.service';
@@ -22,39 +22,45 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
         <div>
           <p class="eyebrow">Clientele</p>
           <h2>Clients</h2>
+          <div class="hero-actions">
+            <button type="button" class="ghost filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
+              <span class="filter-icon" aria-hidden="true"></span>
+              <span>Filtres</span>
+            </button>
+            <button *ngIf="!isPanelOpen()" type="button" class="secondary" (click)="openCreatePanel()">Creer un nouveau client</button>
+            <div class="pager" *ngIf="totalPages() > 1">
+              <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
+              <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
+              <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
+            </div>
+          </div>
         </div>
         <p class="lede">Les clients journaliers et abonnes crees depuis l'ecran sessions apparaissent ici. Cette page permet aussi de creer des clients et des abonnes.</p>
-
-        <div class="filters" [formGroup]="filters">
-          <input formControlName="term" placeholder="Filtrer par nom" />
-
-          <select formControlName="pageSize">
-            <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }} / page</option>
-          </select>
-
-          <button *ngIf="!isPanelOpen()" type="button" class="secondary" (click)="openCreatePanel()">Nouveau client</button>
-        </div>
       </header>
 
       <p class="error" *ngIf="error()">{{ error() }}</p>
 
-      <div class="toolbar">
-        <p class="summary">
-          {{ filteredCustomers().length }} client{{ filteredCustomers().length > 1 ? 's' : '' }}
-          <span *ngIf="filteredCustomers().length !== customers().length">sur {{ customers().length }}</span>
-        </p>
+      <div class="filters-grid collapsible" [class.is-collapsed]="!showFilters()" [formGroup]="filters">
+        <label class="field">
+          <span>Recherche</span>
+          <input formControlName="term" placeholder="Filtrer par nom" />
+        </label>
 
-        <div class="pager" *ngIf="totalPages() > 1">
-          <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
-          <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
-          <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
-        </div>
+        <label class="field">
+          <span>Clients par page</span>
+          <select formControlName="pageSize">
+            <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+          </select>
+        </label>
       </div>
 
       <div class="grid" [class.panel-open]="isPanelOpen()">
         <article class="panel list-panel">
           <div class="panel-header">
-            <h3>Liste</h3>
+            <p class="summary">
+              {{ filteredCustomers().length }} client{{ filteredCustomers().length > 1 ? 's' : '' }}
+              <span *ngIf="filteredCustomers().length !== customers().length">sur {{ customers().length }}</span>
+            </p>
           </div>
 
           <table class="table">
@@ -131,63 +137,23 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
                 </div>
                 <div class="actions">
                   <button type="submit" [disabled]="editForm.invalid">Enregistrer</button>
+                  <button type="button" class="secondary" (click)="openActionModal('subscription')">Ajouter un abonnement</button>
+                  <button type="button" class="secondary" (click)="openActionModal('product')">Vendre un produit</button>
                 </div>
               </form>
 
-              <div class="split-actions">
-                <section class="stack action-block">
-                  <h4>Ajouter un abonnement</h4>
-                  <form [formGroup]="subscriptionSaleForm" (ngSubmit)="sellSubscription(customer.customerId)" class="stack">
-                    <label class="field">
-                      <span>Offre</span>
-                      <select formControlName="subscriptionOfferId">
-                        <option value="">Choisir une offre</option>
-                        <option *ngFor="let offer of offers()" [value]="offer.offerId">{{ offer.name }} - {{ offer.includedMinutes }} min</option>
-                      </select>
-                    </label>
-                    <label class="checkbox">
-                      <input type="checkbox" formControlName="createDebt" />
-                      <span>Creer une dette au lieu d'encaisser</span>
-                    </label>
-                    <button type="submit" [disabled]="subscriptionSaleForm.invalid">Vendre l'abonnement</button>
-                  </form>
-                </section>
-
-                <section class="stack action-block">
-                  <h4>Vendre un produit</h4>
-                  <form [formGroup]="productSaleForm" (ngSubmit)="sellProduct(customer.customerId)" class="stack">
-                    <label class="field">
-                      <span>Produit</span>
-                      <select formControlName="productId">
-                        <option value="">Choisir un produit</option>
-                        <option *ngFor="let product of products()" [value]="product.productId">{{ product.name }} - {{ product.price | number:'1.2-2' }} EUR</option>
-                      </select>
-                    </label>
-                    <label class="field">
-                      <span>Quantite</span>
-                      <input type="number" min="1" formControlName="quantity" />
-                    </label>
-                    <label class="checkbox">
-                      <input type="checkbox" formControlName="createDebt" />
-                      <span>Creer une dette au lieu d'encaisser</span>
-                    </label>
-                    <button type="submit" [disabled]="productSaleForm.invalid">Vendre le produit</button>
-                  </form>
-                </section>
-              </div>
-
               <div class="stack">
                 <h4>Achats du client</h4>
-                <table class="table compact" *ngIf="customer.purchases.length > 0; else emptyPurchases">
+                <table class="table compact" *ngIf="customerPurchaseEntries(customer).length > 0; else emptyPurchases">
                   <thead>
                     <tr><th>Quand</th><th>Type</th><th>Detail</th><th>Total</th></tr>
                   </thead>
                   <tbody>
-                    <tr *ngFor="let purchase of customer.purchases">
-                      <td>{{ purchase.soldAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                      <td>{{ purchase.type }}</td>
-                      <td>{{ purchase.label }}</td>
-                      <td>{{ purchase.totalAmount | number:'1.2-2' }} EUR</td>
+                    <tr *ngFor="let entry of customerPurchaseEntries(customer)" [class.debt-row]="entry.isDebt">
+                      <td>{{ entry.occurredAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                      <td>{{ entry.type }}</td>
+                      <td>{{ entry.detail }}</td>
+                      <td><strong>{{ entry.total | number:'1.2-2' }} EUR</strong></td>
                     </tr>
                   </tbody>
                   <tfoot>
@@ -197,11 +163,59 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
                     </tr>
                   </tfoot>
                 </table>
-                <ng-template #emptyPurchases><p class="muted">Aucun achat enregistre.</p></ng-template>
+                <ng-template #emptyPurchases><p class="muted">Aucun achat ni dette ouverte.</p></ng-template>
               </div>
             </section>
           </ng-template>
         </article>
+      </div>
+
+      <div class="modal-backdrop" *ngIf="actionModal() && selected() as customer" (click)="closeActionModal()">
+        <div class="confirm-modal" (click)="$event.stopPropagation()">
+          <div class="side-panel-header">
+            <div>
+              <h3>{{ actionModal() === 'subscription' ? 'Ajouter un abonnement' : 'Vendre un produit' }}</h3>
+              <p class="muted">{{ customer.name }}</p>
+            </div>
+            <button type="button" class="icon-button" (click)="closeActionModal()">Fermer</button>
+          </div>
+
+          <form *ngIf="actionModal() === 'subscription'; else productModal" [formGroup]="subscriptionSaleForm" (ngSubmit)="sellSubscription(customer.customerId)" class="stack confirm-body">
+            <label class="field">
+              <span>Offre</span>
+              <select formControlName="subscriptionOfferId">
+                <option value="">Choisir une offre</option>
+                <option *ngFor="let offer of offers()" [value]="offer.offerId">{{ offer.name }} - {{ offer.includedMinutes }} min</option>
+              </select>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" formControlName="createDebt" />
+              <span>Creer une dette au lieu d'encaisser</span>
+            </label>
+            <button type="submit" [disabled]="subscriptionSaleForm.invalid">Vendre l'abonnement</button>
+          </form>
+
+          <ng-template #productModal>
+            <form [formGroup]="productSaleForm" (ngSubmit)="sellProduct(customer.customerId)" class="stack confirm-body">
+              <label class="field">
+                <span>Produit</span>
+                <select formControlName="productId">
+                  <option value="">Choisir un produit</option>
+                  <option *ngFor="let product of products()" [value]="product.productId">{{ product.name }} - {{ product.price | number:'1.2-2' }} EUR</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Quantite</span>
+                <input type="number" min="1" formControlName="quantity" />
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" formControlName="createDebt" />
+                <span>Creer une dette au lieu d'encaisser</span>
+              </label>
+              <button type="submit" [disabled]="productSaleForm.invalid">Vendre le produit</button>
+            </form>
+          </ng-template>
+        </div>
       </div>
     </section>
   `,
@@ -210,9 +224,10 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
     .hero { display: grid; gap: 0.8rem; }
     .eyebrow { margin: 0; color: #9a3412; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; }
     .lede { margin: 0; max-width: 56rem; color: #475569; }
-    .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    .hero-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; justify-content: flex-start; margin-top: 0.7rem; }
+    .filters-grid { grid-template-columns: repeat(2, max-content); justify-content: start; }
+    .filters-grid .field input, .filters-grid .field select { width: auto; min-width: 10rem; max-width: 12rem; border-radius: 999px; background: #fff; }
     input, select { padding: 0.85rem 0.95rem; border-radius: 0.85rem; border: 1px solid #cbd5e1; font: inherit; background: #fff; }
-    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
     .summary { margin: 0; color: #334155; font-weight: 600; }
     .pager { display: inline-flex; align-items: center; gap: 0.75rem; color: #475569; }
     .grid { display: grid; grid-template-columns: minmax(0, 1fr) 0fr; gap: 1.25rem; align-items: start; transition: grid-template-columns 220ms ease-out; }
@@ -229,11 +244,11 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
     .compact th, .compact td { padding: 0.6rem; }
     tbody tr { transition: background 160ms ease; }
     tbody tr:hover, tbody tr.active { background: #fff7ed; }
+    .compact tbody tr.debt-row { background: #fff1f2; color: #b91c1c; }
+    .compact tbody tr.debt-row:hover { background: #ffe4e6; }
+    .compact tbody tr.debt-row td { border-bottom-color: #fecdd3; }
     .facts { display: grid; gap: 0.35rem; padding: 0.9rem 1rem; background: #fff; border-radius: 1rem; border: 1px solid #fed7aa; }
     .facts p { margin: 0; }
-    .split-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem; }
-    .action-block { padding: 0.9rem 1rem; background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; }
-    .action-block h4 { margin: 0; }
     .debt-summary { display: flex; gap: 0.5rem; align-items: center; }
     .money-alert-icon { position: relative; display: inline-block; width: 1.3rem; height: 1.1rem; }
     .money-alert-icon .bill { position: absolute; border-radius: 0.2rem; background: linear-gradient(180deg, #fecaca, #fca5a5); border: 1px solid #b91c1c; box-shadow: inset 0 0 0 1px rgba(255,255,255,.24); }
@@ -245,6 +260,7 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
     .muted { margin: 0; color: #64748b; }
     .empty { text-align: center; color: #64748b; padding: 1rem; }
     .error { margin: 0; color: #991b1b; font-weight: 700; }
+    .confirm-body { margin-top: 0.8rem; }
     .side-panel {
       overflow: hidden;
       opacity: 0;
@@ -268,8 +284,9 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
     }
 
     @media (max-width: 1100px) {
+      .filters-grid { grid-template-columns: 1fr; }
+      .filters-grid .field input, .filters-grid .field select { width: 100%; min-width: 0; max-width: none; }
       .grid, .grid.panel-open { grid-template-columns: 1fr; }
-      .split-actions { grid-template-columns: 1fr; }
       .side-panel, .side-panel.open { max-width: none; padding-inline: 1.25rem; opacity: 1; transform: none; }
       .side-panel:not(.open) { display: none; }
     }
@@ -288,7 +305,9 @@ export class CustomersPageComponent {
   readonly products = signal<Product[]>([]);
   readonly selected = signal<CustomerDetails | null>(null);
   readonly panelMode = signal<'create' | 'edit'>('create');
+  readonly actionModal = signal<'subscription' | 'product' | null>(null);
   readonly isPanelOpen = signal(false);
+  readonly showFilters = signal(false);
   readonly page = signal(1);
   readonly error = signal('');
 
@@ -382,8 +401,20 @@ export class CustomersPageComponent {
   closePanel(): void {
     this.selected.set(null);
     this.isPanelOpen.set(false);
+    this.actionModal.set(null);
     this.editForm.reset({ name: '' });
     this.error.set('');
+  }
+
+  openActionModal(mode: 'subscription' | 'product'): void {
+    this.actionModal.set(mode);
+    this.error.set('');
+  }
+
+  closeActionModal(): void {
+    this.actionModal.set(null);
+    this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
+    this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
   }
 
   previousPage(): void {
@@ -455,7 +486,7 @@ export class CustomersPageComponent {
       createDebt: payload.createDebt,
     }).subscribe({
       next: () => {
-        this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
+        this.closeActionModal();
         this.open(customerId);
         this.load();
       },
@@ -475,7 +506,7 @@ export class CustomersPageComponent {
       createDebt: payload.createDebt,
     }).subscribe({
       next: () => {
-        this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
+        this.closeActionModal();
         this.open(customerId);
         this.load();
       },
@@ -496,11 +527,63 @@ export class CustomersPageComponent {
       .reduce((total, purchase) => total + purchase.totalAmount, 0);
   }
 
+  customerPurchaseEntries(customer: CustomerDetails): Array<{ occurredAt: string; type: string; detail: string; total: number; isDebt: boolean }> {
+    const uniquePurchases = Array.from(new Map(customer.purchases.map((purchase) => [purchase.saleId, purchase] as const)).values());
+    const paidPurchases = uniquePurchases
+      .filter((purchase) => !purchase.openDebt)
+      .map((purchase) => ({
+        occurredAt: purchase.soldAt,
+        type: this.purchaseTypeLabel(purchase.type),
+        detail: purchase.label,
+        total: purchase.totalAmount,
+        isDebt: false,
+      }));
+    const openDebts = customer.debts
+      .filter((debt) => debt.status === 'OPEN')
+      .map((debt) => ({
+        occurredAt: debt.createdAt,
+        type: this.debtTypeLabel(debt.label),
+        detail: debt.label,
+        total: debt.amount,
+        isDebt: true,
+      }));
+
+    return [...paidPurchases, ...openDebts]
+      .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
+  }
+
   customerTypeLabel(type: string): string {
-    return type === 'SUBSCRIBER' ? 'Abonne' : 'Client';
+    return type === 'SUBSCRIBER' || type.toLowerCase().includes('abonn') ? 'Abonne' : 'Client';
   }
 
   customerTypeChipClass(type: string): string {
-    return type === 'SUBSCRIBER' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
+    return this.customerTypeLabel(type) === 'Abonne' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
+  }
+
+  private purchaseTypeLabel(type: CustomerPurchase['type']): string {
+    switch (type) {
+      case 'PRODUCTS':
+        return 'Produit';
+      case 'SUBSCRIPTION':
+        return 'Abonnement';
+      case 'CONNECTION_TIME':
+        return 'Connexion';
+      default:
+        return type;
+    }
+  }
+
+  private debtTypeLabel(label: string): string {
+    const normalized = label.toLowerCase();
+    if (normalized.startsWith('vente produits')) {
+      return 'Produit';
+    }
+    if (normalized.startsWith('vente abonnements')) {
+      return 'Abonnement';
+    }
+    if (normalized.startsWith('session du') || normalized.startsWith('depassement abonnement du')) {
+      return 'Connexion';
+    }
+    return 'Dette';
   }
 }

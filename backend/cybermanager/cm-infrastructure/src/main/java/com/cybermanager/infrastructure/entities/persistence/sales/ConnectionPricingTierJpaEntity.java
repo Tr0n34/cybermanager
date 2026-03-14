@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cm_connection_pricing_tier")
@@ -21,4 +22,10 @@ public class ConnectionPricingTierJpaEntity {
 
     @Column(nullable = false, precision = 10, scale = 2)
     public BigDecimal price;
+
+    @Column
+    public LocalDateTime createdAt;
+
+    @Column
+    public LocalDateTime updatedAt;
 }

@@ -27,6 +27,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
         entity.name = product.name();
         entity.price = product.price().amount();
         entity.category = product.category();
+        entity.description = product.description();
         entity.status = product.status().name();
         return toDomain(repository.save(entity));
     }
@@ -45,7 +46,9 @@ public class ProductRepositoryAdapter implements ProductRepository {
     public List<Product> search(String term, ProductStatus status, String category) {
         String search = term == null ? "" : term.toLowerCase();
         return repository.findAll().stream()
-                .filter(item -> search.isBlank() || item.name.toLowerCase().contains(search))
+                .filter(item -> search.isBlank()
+                        || item.name.toLowerCase().contains(search)
+                        || (item.description != null && item.description.toLowerCase().contains(search)))
                 .filter(item -> status == null || item.status.equals(status.name()))
                 .filter(item -> category == null || category.isBlank() || item.category.equalsIgnoreCase(category))
                 .map(this::toDomain)
@@ -53,7 +56,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     private Product toDomain(ProductJpaEntity entity) {
-        return new Product(new ProductId(entity.id), entity.name, new Money(entity.price), entity.category, ProductStatus.valueOf(entity.status));
+        return new Product(new ProductId(entity.id), entity.name, new Money(entity.price), entity.category, entity.description, ProductStatus.valueOf(entity.status));
     }
 }
 

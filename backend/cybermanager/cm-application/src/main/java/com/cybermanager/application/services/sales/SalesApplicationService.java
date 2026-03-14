@@ -21,6 +21,7 @@ import com.cybermanager.application.usecases.sales.ConfigureConnectionPricingUse
 import com.cybermanager.application.usecases.sales.CreateConnectionTimeSaleUseCase;
 import com.cybermanager.application.usecases.sales.CreateProductSaleUseCase;
 import com.cybermanager.application.usecases.sales.CreateSubscriptionSaleUseCase;
+import com.cybermanager.application.usecases.sales.DeleteSubscriptionSaleUseCase;
 import com.cybermanager.application.usecases.sales.GetSaleDetailsUseCase;
 import com.cybermanager.application.usecases.sales.SearchSalesOfDayUseCase;
 import com.cybermanager.application.views.sales.ConnectionPricingView;
@@ -30,12 +31,15 @@ import com.cybermanager.domain.model.catalog.ProductId;
 import com.cybermanager.domain.model.customer.Customer;
 import com.cybermanager.domain.model.customer.CustomerId;
 import com.cybermanager.domain.model.customer.DebtRecord;
+import com.cybermanager.domain.model.customer.DebtStatus;
 import com.cybermanager.domain.model.sales.ConnectionPricingTier;
 import com.cybermanager.domain.model.shared.Money;
 import com.cybermanager.domain.model.subscription.SubscriptionOfferId;
+import com.cybermanager.domain.model.subscription.SubscriptionOfferStatus;
 import com.cybermanager.domain.port.catalog.ProductRepository;
 import com.cybermanager.domain.port.customer.CustomerRepository;
 import com.cybermanager.domain.port.customer.DebtRepository;
+import com.cybermanager.domain.port.session.CafeSessionRepository;
 import com.cybermanager.domain.port.subscription.SubscriptionOfferRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +50,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Transactional
 public class SalesApplicationService implements
         CreateProductSaleUseCase,
         CreateSubscriptionSaleUseCase,
+        DeleteSubscriptionSaleUseCase,
         CreateConnectionTimeSaleUseCase,
         ConfigureConnectionPricingUseCase,
         SearchSalesOfDayUseCase,
@@ -64,14 +70,16 @@ public class SalesApplicationService implements
     private final SubscriptionOfferRepository subscriptionOfferRepository;
     private final CustomerRepository customerRepository;
     private final DebtRepository debtRepository;
+    private final CafeSessionRepository sessionRepository;
 
-    public SalesApplicationService(SaleRepository saleRepository, ConnectionPricingRepository pricingRepository, ProductRepository productRepository, SubscriptionOfferRepository subscriptionOfferRepository, CustomerRepository customerRepository, DebtRepository debtRepository) {
+    public SalesApplicationService(SaleRepository saleRepository, ConnectionPricingRepository pricingRepository, ProductRepository productRepository, SubscriptionOfferRepository subscriptionOfferRepository, CustomerRepository customerRepository, DebtRepository debtRepository, CafeSessionRepository sessionRepository) {
         this.saleRepository = saleRepository;
         this.pricingRepository = pricingRepository;
         this.productRepository = productRepository;
         this.subscriptionOfferRepository = subscriptionOfferRepository;
         this.customerRepository = customerRepository;
         this.debtRepository = debtRepository;
+        this.sessionRepository = sessionRepository;
     }
 
     public SaleView execute(CreateProductSaleCommand command) {
@@ -82,8 +90,9 @@ public class SalesApplicationService implements
             return new SaleLine(product.name(), line.quantity(), product.price(), total);
         }).toList();
         var totalAmount = lines.stream().map(SaleLine::totalPrice).reduce(Money.of("0"), Money::add);
-        var sale = saleRepository.save(Sale.create(new CustomerId(command.customerId()), SaleType.PRODUCTS, LocalDateTime.now(), lines, totalAmount));
-        createDebtIfRequested(command.customerId(), command.createDebt(), "Vente produits du " + DateTimeLabelFormatter.format(sale.soldAt()), totalAmount);
+        validateSessionLink(command.customerId(), command.sessionId());
+        var sale = saleRepository.save(Sale.create(new CustomerId(command.customerId()), command.sessionId(), SaleType.PRODUCTS, LocalDateTime.now(), lines, totalAmount));
+        createDebtIfRequested(command.customerId(), command.createDebt(), debtLabelForSale(sale), totalAmount);
         LOGGER.info("Product sale created saleId={} customerId={} total={}", sale.id().value(), sale.customerId().value(), sale.totalAmount().amount());
         return toView(sale);
     }
@@ -96,10 +105,45 @@ public class SalesApplicationService implements
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
         customerRepository.save(customer.addSubscriptionMinutes(offer.includedMinutes()));
         var lines = List.of(new SaleLine(offer.name(), 1, offer.price(), offer.price()));
-        var sale = saleRepository.save(Sale.create(new CustomerId(command.customerId()), SaleType.SUBSCRIPTION, LocalDateTime.now(), lines, offer.price()));
-        createDebtIfRequested(command.customerId(), command.createDebt(), "Vente abonnement du " + DateTimeLabelFormatter.format(sale.soldAt()), offer.price());
+        validateSessionLink(command.customerId(), command.sessionId());
+        var sale = saleRepository.save(Sale.create(new CustomerId(command.customerId()), command.sessionId(), SaleType.SUBSCRIPTION, LocalDateTime.now(), lines, offer.price()));
+        createDebtIfRequested(command.customerId(), command.createDebt(), debtLabelForSale(sale), offer.price());
         LOGGER.info("Subscription sale created saleId={} customerId={} includedMinutes={}", sale.id().value(), sale.customerId().value(), offer.includedMinutes());
         return toView(sale);
+    }
+
+    public void execute(UUID saleId) {
+        var sale = saleRepository.findById(new SaleId(saleId))
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SALE_NOT_FOUND", "Sale not found"));
+        if (sale.type() != SaleType.SUBSCRIPTION) {
+            throw new BusinessException(BusinessErrorType.VALIDATION, "SALE_NOT_SUBSCRIPTION", "Only subscription sales can be deleted");
+        }
+        if (sale.sessionId() == null) {
+            throw new BusinessException(BusinessErrorType.VALIDATION, "SALE_SESSION_REQUIRED", "Sale is not linked to a session");
+        }
+
+        var session = sessionRepository.findById(new com.cybermanager.domain.model.session.SessionId(sale.sessionId()))
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SESSION_NOT_FOUND", "Session not found"));
+        if (session.endedAt() == null || session.paid()) {
+            throw new BusinessException(BusinessErrorType.CONFLICT, "SALE_DELETE_FORBIDDEN", "Subscription sale can only be deleted before payment");
+        }
+
+        var customer = customerRepository.findById(sale.customerId())
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
+        int includedMinutes = sale.lines().stream()
+                .mapToInt(line -> findIncludedMinutes(line.label()))
+                .sum();
+        customerRepository.save(customer.removeSubscriptionMinutes(includedMinutes));
+
+        debtRepository.findByCustomerId(customer.id()).stream()
+                .filter(debt -> debt.status() == DebtStatus.OPEN)
+                .filter(debt -> debt.label().equals(debtLabelForSale(sale)))
+                .filter(debt -> debt.amount().amount().compareTo(sale.totalAmount().amount()) == 0)
+                .findFirst()
+                .ifPresent(debt -> debtRepository.deleteById(debt.id()));
+
+        saleRepository.deleteById(sale.id());
+        LOGGER.info("Subscription sale deleted saleId={} customerId={} includedMinutes={}", sale.id().value(), customer.id().value(), includedMinutes);
     }
 
     public SaleView execute(CreateConnectionTimeSaleCommand command) {
@@ -107,8 +151,9 @@ public class SalesApplicationService implements
         var pricing = pricingRepository.getCurrentRule();
         Money total = pricing.priceForMinutes(command.minutes());
         var lines = List.of(new SaleLine("Connection time " + command.minutes() + " min", 1, total, total));
-        var sale = saleRepository.save(Sale.create(new CustomerId(command.customerId()), SaleType.CONNECTION_TIME, LocalDateTime.now(), lines, total));
-        createDebtIfRequested(command.customerId(), command.createDebt(), "Vente temps du " + DateTimeLabelFormatter.format(sale.soldAt()), total);
+        validateSessionLink(command.customerId(), command.sessionId());
+        var sale = saleRepository.save(Sale.create(new CustomerId(command.customerId()), command.sessionId(), SaleType.CONNECTION_TIME, LocalDateTime.now(), lines, total));
+        createDebtIfRequested(command.customerId(), command.createDebt(), debtLabelForSale(sale), total);
         LOGGER.debug("Connection time pricing computed customerId={} minutes={} total={}", command.customerId(), command.minutes(), total.amount());
         return toView(sale);
     }
@@ -154,6 +199,29 @@ public class SalesApplicationService implements
         LOGGER.info("Debt created from sale customerId={} amount={} label={}", customerId, amount.amount(), label);
     }
 
+    private void validateSessionLink(java.util.UUID customerId, java.util.UUID sessionId) {
+        if (sessionId == null) {
+            return;
+        }
+        var session = sessionRepository.findById(new com.cybermanager.domain.model.session.SessionId(sessionId))
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SESSION_NOT_FOUND", "Session not found"));
+        if (!session.customerId().equals(new CustomerId(customerId))) {
+            throw new BusinessException(BusinessErrorType.VALIDATION, "SESSION_CUSTOMER_MISMATCH", "Session does not belong to customer");
+        }
+    }
+
+    private String debtLabelForSale(Sale sale) {
+        return switch (sale.type()) {
+            case PRODUCTS -> sale.lines().stream()
+                    .map(line -> line.quantity() + " x " + line.label())
+                    .reduce((left, right) -> left + ", " + right)
+                    .map(label -> label + " du " + DateTimeLabelFormatter.format(sale.soldAt()))
+                    .orElse("Vente produits du " + DateTimeLabelFormatter.format(sale.soldAt()));
+            case SUBSCRIPTION -> "Vente abonnement du " + DateTimeLabelFormatter.format(sale.soldAt());
+            case CONNECTION_TIME -> "Vente temps du " + DateTimeLabelFormatter.format(sale.soldAt());
+        };
+    }
+
     private SaleView toView(Sale sale) {
         return new SaleView(
                 sale.id().value(),
@@ -173,11 +241,25 @@ public class SalesApplicationService implements
 
     private ConnectionPricingView.PricingTierView toPricingTierView(ConnectionPricingTier tier) {
         return new ConnectionPricingView.PricingTierView(
+                tier.id(),
                 tier.durationMinutes() / 60,
                 tier.durationMinutes() % 60,
                 tier.durationMinutes(),
-                tier.price().amount()
+                tier.price().amount(),
+                tier.createdAt(),
+                tier.updatedAt()
         );
+    }
+
+    private int findIncludedMinutes(String offerLabel) {
+        return subscriptionOfferRepository.search(offerLabel, SubscriptionOfferStatus.ACTIVE).stream()
+                .filter(offer -> offer.name().equalsIgnoreCase(offerLabel))
+                .findFirst()
+                .or(() -> subscriptionOfferRepository.search(offerLabel, SubscriptionOfferStatus.INACTIVE).stream()
+                        .filter(offer -> offer.name().equalsIgnoreCase(offerLabel))
+                        .findFirst())
+                .map(offer -> offer.includedMinutes())
+                .orElse(0);
     }
 }
 

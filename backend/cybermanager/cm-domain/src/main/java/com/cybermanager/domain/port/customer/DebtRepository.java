@@ -10,6 +10,7 @@ import java.util.Optional;
 public interface DebtRepository {
     DebtRecord save(DebtRecord debtRecord);
     Optional<DebtRecord> findById(DebtId debtId);
+    void deleteById(DebtId debtId);
     List<DebtRecord> findByCustomerId(CustomerId customerId);
     List<DebtRecord> findOpenDebts();
 }

@@ -60,6 +60,13 @@ public record CafeSession(
         return new CafeSession(id, customerId, workstation, startedAt, endedAt, null, paid, pausedSecondsUntil(endedAt), consumedSecondsUntil(endedAt), calculatedPrice);
     }
 
+    public CafeSession markPaid() {
+        if (!paid && endedAt == null) {
+            throw new IllegalStateException("Cannot mark an active session as paid");
+        }
+        return new CafeSession(id, customerId, workstation, startedAt, endedAt, null, true, pausedSeconds, consumedSeconds, calculatedPrice);
+    }
+
     public boolean active() {
         return endedAt == null;
     }

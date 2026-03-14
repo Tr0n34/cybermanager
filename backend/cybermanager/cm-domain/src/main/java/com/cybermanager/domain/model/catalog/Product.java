@@ -9,6 +9,7 @@ public record Product(
         String name,
         Money price,
         String category,
+        String description,
         ProductStatus status
 ) {
     public Product {
@@ -18,23 +19,24 @@ public record Product(
         }
         Objects.requireNonNull(price, "price is required");
         category = category == null ? "GENERAL" : category.trim();
+        description = description == null ? "" : description.trim();
         Objects.requireNonNull(status, "status is required");
     }
 
-    public static Product create(String name, Money price, String category) {
-        return new Product(ProductId.newId(), name.trim(), price, category, ProductStatus.ACTIVE);
+    public static Product create(String name, Money price, String category, String description) {
+        return new Product(ProductId.newId(), name.trim(), price, category, description, ProductStatus.ACTIVE);
     }
 
-    public Product update(String name, Money price, String category) {
-        return new Product(id, name, price, category, status);
+    public Product update(String name, Money price, String category, String description) {
+        return new Product(id, name, price, category, description, status);
     }
 
     public Product activate() {
-        return new Product(id, name, price, category, ProductStatus.ACTIVE);
+        return new Product(id, name, price, category, description, ProductStatus.ACTIVE);
     }
 
     public Product deactivate() {
-        return new Product(id, name, price, category, ProductStatus.INACTIVE);
+        return new Product(id, name, price, category, description, ProductStatus.INACTIVE);
     }
 }
 

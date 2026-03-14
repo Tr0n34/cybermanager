@@ -10,6 +10,7 @@ public record SessionView(
         String customerName,
         String customerType,
         int remainingMinutes,
+        int displayRemainingMinutes,
         String workstation,
         LocalDateTime startedAt,
         LocalDateTime endedAt,

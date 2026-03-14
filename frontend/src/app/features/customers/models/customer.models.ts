@@ -9,8 +9,10 @@ export interface Customer {
 
 export interface CustomerPurchase {
   saleId: string;
+  sessionId: string | null;
   type: string;
   label: string;
+  debtLabel: string;
   soldAt: string;
   totalAmount: number;
   openDebt: boolean;

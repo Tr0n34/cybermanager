@@ -6,10 +6,12 @@ import com.cybermanager.domain.model.shared.Money;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 public record Sale(
         SaleId id,
         CustomerId customerId,
+        UUID sessionId,
         SaleType type,
         LocalDateTime soldAt,
         List<SaleLine> lines,
@@ -28,7 +30,11 @@ public record Sale(
     }
 
     public static Sale create(CustomerId customerId, SaleType type, LocalDateTime soldAt, List<SaleLine> lines, Money totalAmount) {
-        return new Sale(SaleId.newId(), customerId, type, soldAt, lines, totalAmount);
+        return new Sale(SaleId.newId(), customerId, null, type, soldAt, lines, totalAmount);
+    }
+
+    public static Sale create(CustomerId customerId, UUID sessionId, SaleType type, LocalDateTime soldAt, List<SaleLine> lines, Money totalAmount) {
+        return new Sale(SaleId.newId(), customerId, sessionId, type, soldAt, lines, totalAmount);
     }
 }
 

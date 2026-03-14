@@ -141,10 +141,10 @@ import { SubscriptionOffersApiService } from '../services/subscription-offers-ap
     .summary { margin: 0; color: #334155; font-weight: 600; }
     .pager { display: inline-flex; align-items: center; gap: 0.75rem; color: #475569; }
     .section-title-group { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-    .filters-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .filters-grid { grid-template-columns: repeat(3, max-content); justify-content: start; }
     .filters-grid .field { display: grid; gap: 0.28rem; align-content: start; }
     .filters-grid .field span { font-size: 0.78rem; font-weight: 700; color: #334155; line-height: 1.1; }
-    .filters-grid .field input, .filters-grid .field select { width: 100%; border-radius: 999px; background: #fff; }
+    .filters-grid .field input, .filters-grid .field select { width: auto; min-width: 9.5rem; max-width: 12rem; border-radius: 999px; background: #fff; padding: 0.62rem 0.8rem !important; }
     .filter-toggle { padding: 0.5rem 0.78rem !important; border-radius: 999px !important; }
     .filter-icon { position: relative; display: inline-block; width: 0.88rem; height: 0.7rem; }
     .filter-icon::before { content: ""; position: absolute; left: 0; right: 0; top: 0.02rem; height: 0.12rem; border-radius: 999px; background: currentColor; box-shadow: 0 0.24rem 0 currentColor, 0 0.48rem 0 currentColor; }
@@ -192,6 +192,7 @@ import { SubscriptionOffersApiService } from '../services/subscription-offers-ap
 
     @media (max-width: 1000px) {
       .filters-grid { grid-template-columns: 1fr; }
+      .filters-grid .field input, .filters-grid .field select { width: 100%; min-width: 0; max-width: none; }
       .grid, .grid.panel-open { grid-template-columns: 1fr; }
       .side-panel, .side-panel.open { max-width: none; padding-inline: 1.1rem; opacity: 1; transform: none; }
       .side-panel:not(.open) { display: none; }

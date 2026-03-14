@@ -6,6 +6,7 @@ import java.util.UUID;
 public record SettleDebtCommand(
         String actorEmail,
         Set<String> actorRoles,
-        UUID debtId
+        UUID debtId,
+        String comment
 ) {
 }

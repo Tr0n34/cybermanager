@@ -8,10 +8,13 @@ export interface Sale {
 }
 
 export interface ConnectionPricingTier {
+  id: number | null;
   hours: number;
   minutes: number;
   durationMinutes: number;
   price: number;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 export interface ConnectionPricing {

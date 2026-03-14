@@ -11,6 +11,7 @@ public interface CafeSessionRepository {
     CafeSession save(CafeSession session);
     Optional<CafeSession> findById(SessionId sessionId);
     List<CafeSession> findByDay(LocalDate date);
+    List<CafeSession> findAll();
     List<CafeSession> findActive();
 }
 

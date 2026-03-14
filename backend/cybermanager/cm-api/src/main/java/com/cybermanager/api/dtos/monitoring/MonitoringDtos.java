@@ -19,7 +19,25 @@ public final class MonitoringDtos {
             BigDecimal collectedTotal,
             String state
     ) {}
-    public record SaleActivityResponse(String label, int quantity, BigDecimal totalPrice) {}
-    public record DayCustomerActivityResponse(UUID customerId, String name, List<SaleActivityResponse> sales, List<String> sessions, BigDecimal totalCollected, BigDecimal totalDebtCreated) {}
+    public record SaleActivityResponse(
+            String label,
+            int quantity,
+            BigDecimal totalPrice,
+            boolean debt,
+            String soldAt
+    ) {}
+    public record SessionActivityResponse(
+            String sessionLabel,
+            String startedAt,
+            String endedAt
+    ) {}
+    public record DayCustomerActivityResponse(
+            UUID customerId,
+            String name,
+            List<SaleActivityResponse> sales,
+            List<SessionActivityResponse> sessions,
+            BigDecimal totalCollected,
+            BigDecimal totalDebtCreated
+    ) {}
 }
 

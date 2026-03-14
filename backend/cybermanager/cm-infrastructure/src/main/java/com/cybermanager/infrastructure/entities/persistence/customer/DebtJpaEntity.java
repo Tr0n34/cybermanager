@@ -15,6 +15,7 @@ public class DebtJpaEntity {
     public UUID id;
     public UUID customerId;
     public String label;
+    public String comment;
     public BigDecimal amount;
     public String status;
     public LocalDateTime createdAt;

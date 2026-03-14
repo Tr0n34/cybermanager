@@ -1,7 +1,7 @@
-.grid{display:grid;grid-template-columns:minmax(320px,430px) minmax(0,1fr);gap:.9rem;align-items:stretch}
+.grid{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1.25fr);gap:1rem;align-items:stretch}
 .panel-left{align-self:stretch;max-height:78vh;overflow:auto}
 .accordion-group{display:grid;gap:0}
-.panel-right{align-self:stretch;max-height:78vh;overflow:hidden;min-height:0;padding-bottom:.8rem}
+.panel-right{align-self:stretch;max-height:78vh;overflow:hidden;min-height:0;padding:.1rem .2rem .8rem}
 .current-section{min-height:0;padding-right:.1rem;align-content:start;gap:.82rem}
 .day-panel{margin-top:0}
 .day-panel>section{gap:.82rem;align-content:start}
@@ -11,11 +11,18 @@
 .accordion-group .mode-card + .mode-card{border-top:0}
 .mode-card.open{max-height:30rem;opacity:1;transform:translateY(0);box-shadow:0 14px 30px rgba(15,23,42,.06);position:relative;z-index:1}
 .mode-card.accent{border-color:#fdba74;background:#fff7ed;max-height:24rem;margin-top:.72rem;border-radius:1rem}
-.mode-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;padding:.82rem .95rem;background:transparent;color:#0f172a;border:0;font-weight:800;cursor:pointer}
-.mode-toggle small{color:#64748b;font-weight:600}
+.mode-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;gap:.65rem;padding:.82rem .88rem;background:transparent;color:#0f172a;border:0;font-weight:800;cursor:pointer}
+.mode-toggle span:first-child{min-width:0;max-width:11.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mode-toggle small{color:#64748b;font-weight:600;flex:0 0 auto}
 .mode-toggle.static{cursor:default}
 .mode-body{padding:0 .95rem;opacity:0;transform:translateY(-8px);transition:opacity .24s ease,transform .24s ease,padding .24s ease;pointer-events:none}
 .mode-card.open .mode-body,.mode-body.visible{padding:0 .95rem .95rem;opacity:1;transform:translateY(0);pointer-events:auto}
+.mode-body form{display:grid;gap:.72rem}
+.mode-body form .field{padding:0 .18rem}
+.mode-body form .field input,.mode-body form .field select{width:100%;box-sizing:border-box}
+.mode-body form > button{margin-top:.5rem;padding:.5rem .82rem !important;justify-self:center;min-width:11.5rem}
+.mode-body form > .actions{margin-top:.45rem}
+.mode-body form > .actions,.mode-body form > .inline-actions{justify-content:center}
 .filters-grid{grid-template-columns:minmax(170px,250px) minmax(170px,230px)}
 .filters-grid .field{grid-template-rows:auto 2.55rem}
 .filters-grid input{height:2.55rem;min-height:2.55rem}
@@ -23,12 +30,25 @@
 .table th{position:sticky;top:0;background:#fff;z-index:1}
 .table tbody tr{border-left:4px solid transparent}
 .table td.action-cell button{margin-left:auto}
+.indicator-head{width:2.4rem}
+.indicator-cell{padding-inline:.2rem}
+.session-indicator{display:inline-flex;align-items:center;justify-content:center;width:1.15rem;height:1.15rem;border-radius:999px;font-size:0;font-weight:900;line-height:1;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08)}
+.session-indicator::before{font-size:.64rem;line-height:1;color:#fff}
+.debt-session-indicator{background:#ef4444}
+.debt-session-indicator::before{content:'D'}
+.ok-session-indicator{background:#22c55e}
+.ok-session-indicator::before{content:'U'}
+.awaiting-payment-row{background:#eff6ff}
+.pending-chip{background:#dbeafe;color:#1d4ed8}
+.pending-amount{font-weight:800;color:#1d4ed8}
 .paused-chip{background:#fef3c7;color:#92400e}
 .detail-row td{background:#fffaf4;padding-top:.22rem;padding-bottom:.32rem}
 .detail-card{padding:.16rem 0}
 .detail-grid{grid-template-columns:1.1fr .9fr}
 .purchase-item.debt-entry{background:#fff1f2;border-color:#fecdd3}
 .purchase-item.debt-entry strong,.purchase-item.debt-entry span:last-child{color:#b91c1c}
+.entry-actions-cell{display:inline-flex;justify-content:flex-end;align-items:center;gap:.28rem;min-width:3rem}
+.icon-remove{min-width:1.2rem;padding:0 .28rem !important;line-height:1;font-size:1rem;font-weight:800;background:transparent !important;color:#b91c1c !important}
 .debt-summary{display:flex;gap:.5rem;align-items:center}
 .sale-card{padding:.82rem;border-radius:1rem;background:#fff7ed;border:1px solid #fed7aa}
 @media(max-width:1100px){.grid{grid-template-columns:1fr}.panel-left,.panel-right{max-height:none;overflow:visible}.fixed-shell{height:auto;min-height:0}.filters-grid,.detail-grid{grid-template-columns:1fr}.filters-grid .field{grid-template-rows:auto auto}.filters-grid input{height:auto;min-height:0}}

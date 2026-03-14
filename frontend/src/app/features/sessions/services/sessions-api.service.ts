@@ -21,8 +21,16 @@ export class SessionsApiService {
     return this.http.post<CafeSession>(`${this.baseUrl}/start`, payload);
   }
 
-  stop(sessionId: string, paid = false) {
-    return this.http.post<CafeSession>(`${this.baseUrl}/${sessionId}/stop`, { paid });
+  stop(sessionId: string) {
+    return this.http.post<CafeSession>(`${this.baseUrl}/${sessionId}/stop`, {});
+  }
+
+  pay(sessionId: string, payload: { amountPaid: number; subscriptionOfferIds: string[]; createSubscriptionDebt: boolean }) {
+    return this.http.post<CafeSession>(`${this.baseUrl}/${sessionId}/pay`, payload);
+  }
+
+  restartDay() {
+    return this.http.post<{ archivedSessions: number }>(`${this.baseUrl}/restart-day`, {});
   }
 
   pause(sessionId: string) {

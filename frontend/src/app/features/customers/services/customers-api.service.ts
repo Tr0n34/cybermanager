@@ -28,12 +28,16 @@ export class CustomersApiService {
     return this.http.put<Customer>(`${this.baseUrl}/${id}`, payload);
   }
 
-  convert(id: string, payload: { subscriptionOfferId: string; deductCurrentSession: boolean }) {
+  convert(id: string, payload: { subscriptionOfferId: string; deductCurrentSession: boolean; sessionId?: string | null }) {
     return this.http.post(`${this.baseUrl}/${id}/convert-to-subscriber`, payload);
   }
 
   settleDebt(debtId: string) {
     return this.http.post(`${this.baseUrl}/debts/${debtId}/settle`, {});
+  }
+
+  reattachDebtToSession(debtId: string, sessionId: string) {
+    return this.http.post(`${this.baseUrl}/debts/${debtId}/reattach-to-session`, { sessionId });
   }
 
   createDebtFromSale(saleId: string) {

@@ -15,6 +15,7 @@ public class ProductJpaEntity {
     public String name;
     public BigDecimal price;
     public String category;
+    public String description;
     public String status;
 }
 

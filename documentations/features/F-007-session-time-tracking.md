@@ -34,6 +34,7 @@ Permettre de demarrer, suivre, convertir et terminer une session de connexion, a
 - un client abonne existant doit etre retrouvable par autocompletion
 - un abonne actif avec du credit doit pouvoir demarrer et terminer une session
 - un abonne sans credit disponible ne peut pas demarrer une nouvelle session
+- un abonne deja present dans `Sessions en cours` ne peut pas etre lance une seconde fois tant que sa session n'est pas terminee
 - un client journalier en session peut etre converti en abonne sans quitter l'ecran sessions
 - l'affichage des sessions du jour doit etre centre sur le nom du client
 - la gestion des postes n'est pas exposee dans l'interface utilisateur
@@ -112,6 +113,7 @@ Permettre de demarrer, suivre, convertir et terminer une session de connexion, a
 - l'ecran permet de saisir directement le nom d'un client journalier
 - l'ecran permet de creer un client abonne avec son abonnement initial
 - la recherche d'abonne se fait par autocompletion et non par liste exhaustive
+- l'autocompletion d'abonne continue d'afficher les resultats de recherche meme si l'un d'eux a deja une session en cours
 - toutes les zones de recherche possedent un label explicite
 - les sessions en cours et du jour sont separees visuellement, les sessions du jour etant affichees dans un encart dedie en bas
 - les sessions en cours et du jour affichent le nom du client et son type
@@ -130,12 +132,15 @@ Permettre de demarrer, suivre, convertir et terminer une session de connexion, a
 - le resume abonnement rappelle que les abonnements se cumulent
 - l'interface privilegie des formulaires courts, compacts et des actions immediates pour un usage comptoir
 - les colonnes et tableaux sont compactes et scrollables pour supporter un grand nombre de sessions
+- les formulaires `Client`, `Abonne existant` et `Nouvel abonne` restent legerement en retrait dans leur cadre, sans champs colles aux bordures
+- les boutons `Demarrer la session` et `Creer et demarrer` sont centres dans le cadre de gauche
 
 ## Criteres d'acceptation
 
 - un client journalier peut etre cree et demarre depuis l'ecran sessions
 - un client abonne peut etre cree et demarre depuis l'ecran sessions
 - un abonne existant peut etre retrouve par autocompletion et demarrer une session
+- un abonne deja present dans `Sessions en cours` ne peut pas etre relance et un message d'erreur explicite est affiche
 - les sessions du jour affichent les noms des clients
 - un client journalier actif peut etre converti en abonne depuis l'ecran sessions
 - le detail d'une session affiche les dettes ouvertes du client en rouge

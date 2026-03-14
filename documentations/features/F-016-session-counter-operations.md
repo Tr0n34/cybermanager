@@ -37,6 +37,8 @@ Fournir un ecran `Sessions` compacte, orientee comptoir, qui centralise les acti
 - une vente de produit ne doit jamais effacer les dettes deja existantes
 - les dettes issues d'achats similaires peuvent etre regroupees sur une ligne compacte dans le detail des achats
 - les abonnements d'un meme client sont cumulables et augmentent le credit disponible
+- dans la modale de paiement, un abonnement ajoute pendant le reglement augmente d'abord le credit, reduit le cout du depassement eventuel, puis ajoute son propre prix au montant final a regler
+- la colonne `A payer` d'une session doit suivre la meme regle que la modale de paiement pour les abonnements deja rattaches a la session
 
 ## Backend
 
@@ -97,6 +99,7 @@ Fournir un ecran `Sessions` compacte, orientee comptoir, qui centralise les acti
 - la vente d'un produit depuis une session se fait dans une modale
 - la vente d'un abonnement depuis une session se fait dans une modale
 - l'arret d'une session ouvre une modale de validation du paiement avec detail `Connexion`, `Achats`, `Total du jour`, `Dettes ouvertes`
+- la modale de paiement peut ajouter un ou plusieurs abonnements et recalculer immediatement le montant `A payer`
 
 ## Criteres d'acceptation
 
