@@ -6,6 +6,7 @@ import com.cybermanager.api.dtos.session.SessionDtos.RestartSessionsDayResponse;
 import com.cybermanager.api.dtos.session.SessionDtos.SessionResponse;
 import com.cybermanager.api.dtos.session.SessionDtos.StartSessionRequest;
 import com.cybermanager.application.commands.session.PaySessionCommand;
+import com.cybermanager.application.commands.session.PaySessionAndCreateInvoiceCommand;
 import com.cybermanager.application.commands.session.RestartSessionsDayCommand;
 import com.cybermanager.application.commands.session.StartSessionCommand;
 import com.cybermanager.application.commands.session.PauseSessionCommand;
@@ -14,6 +15,8 @@ import com.cybermanager.application.commands.session.StopSessionCommand;
 import com.cybermanager.application.queries.session.SearchSessionsOfDayQuery;
 import com.cybermanager.application.services.session.SessionApplicationService;
 import com.cybermanager.application.views.session.SessionView;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -59,6 +62,22 @@ public class SessionController {
                 request == null || request.subscriptionOfferIds() == null ? List.of() : request.subscriptionOfferIds(),
                 request != null && request.createSubscriptionDebt()
         ))));
+    }
+
+    @PostMapping("/{id}/pay-with-invoice")
+    public ResponseEntity<byte[]> payWithInvoice(@PathVariable("id") UUID id, @RequestBody(required = false) PaySessionRequest request) {
+        var result = service.execute(new PaySessionAndCreateInvoiceCommand(
+                id,
+                request == null ? null : request.amountPaid(),
+                request == null || request.subscriptionOfferIds() == null ? List.of() : request.subscriptionOfferIds(),
+                request != null && request.createSubscriptionDebt()
+        ));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + result.fileName() + "\"")
+                .header("X-Invoice-Id", result.invoiceId().toString())
+                .header("X-Invoice-Number", result.invoiceNumber())
+                .contentType(MediaType.parseMediaType(result.mediaType()))
+                .body(result.content());
     }
 
     @PostMapping("/{id}/pause")

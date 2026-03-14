@@ -1,0 +1,146 @@
+<section class="page">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Archivage</p>
+      <h2>Archivage clients</h2>
+      <div class="hero-actions">
+        <button type="button" class="ghost filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
+          <span class="filter-icon" aria-hidden="true"></span>
+          <span>Filtres</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <p class="error" *ngIf="error()">{{ error() }}</p>
+  <p class="success" *ngIf="success()">{{ success() }}</p>
+
+  <form class="filters-grid collapsible" [class.is-collapsed]="!showFilters()" [formGroup]="form">
+    <label class="field">
+      <span>Derniere activite du</span>
+      <input type="date" formControlName="startDate" />
+    </label>
+    <label class="field">
+      <span>Au</span>
+      <input type="date" formControlName="endDate" />
+    </label>
+    <label class="field">
+      <span>Type de client</span>
+      <select formControlName="type">
+        <option value="">Tous les clients archivables</option>
+        <option value="WALK_IN">Clients</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Clients par page</span>
+      <select formControlName="pageSize">
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="30">30</option>
+        <option value="50">50</option>
+      </select>
+    </label>
+  </form>
+
+  <article class="panel">
+    <div class="panel-header">
+      <div class="panel-actions-left">
+        <button type="button" class="secondary" (click)="loadCandidates()" [disabled]="loading()">
+          {{ loading() ? 'Chargement...' : 'Rechercher' }}
+        </button>
+        <button type="button" class="danger" (click)="archive('csv')" [disabled]="archiving() || candidates().length === 0">
+          {{ archiving() ? 'Archivage...' : 'Archiver CSV' }}
+        </button>
+        <button type="button" class="secondary" (click)="archive('xlsx')" [disabled]="archiving() || candidates().length === 0">
+          {{ archiving() ? 'Archivage...' : 'Archiver XLSX' }}
+        </button>
+        <button type="button" class="secondary" (click)="exportDebtReport()" [disabled]="exportingDebtReport()">
+          {{ exportingDebtReport() ? 'Generation...' : 'Rapport complet des dettes PDF' }}
+        </button>
+        <section class="stats" *ngIf="hasLoaded()">
+          <article class="stat-card">
+            <span>Clients archivables</span>
+            <strong>{{ candidates().length }}</strong>
+          </article>
+          <article class="stat-card">
+            <span>Montant des ventes</span>
+            <strong>{{ totalSales() | number:'1.2-2' }} EUR</strong>
+          </article>
+          <article class="stat-card">
+            <span>Dettes detectees</span>
+            <strong>{{ totalDebt() | number:'1.2-2' }} EUR</strong>
+          </article>
+        </section>
+      </div>
+      <div class="panel-actions-right">
+        <p class="muted">{{ candidates().length }} resultat(s)</p>
+        <div class="pager" *ngIf="totalPages() > 1">
+          <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
+          <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
+          <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
+        </div>
+      </div>
+    </div>
+
+    <table class="table" *ngIf="pagedCandidates().length > 0; else emptyState">
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Type</th>
+          <th>Derniere activite</th>
+          <th>Sessions</th>
+          <th>Ventes</th>
+          <th>Dettes</th>
+          <th>Credit</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of pagedCandidates()">
+          <td>
+            <strong>{{ item.name }}</strong>
+            <small>{{ item.salesTotal | number:'1.2-2' }} EUR ventes / {{ item.debtTotal | number:'1.2-2' }} EUR dettes</small>
+          </td>
+          <td><span [class]="customerTypeChipClass(item.type)">{{ customerTypeLabel(item.type) }}</span></td>
+          <td>{{ item.latestActivityAt | date:'dd/MM/yyyy HH:mm' }}</td>
+          <td>{{ item.sessionCount }}</td>
+          <td>{{ item.saleCount }}</td>
+          <td>{{ item.debtCount }}</td>
+          <td>{{ item.remainingMinutes }} min</td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #emptyState>
+      <p class="muted" *ngIf="hasLoaded(); else initialState">Aucun client archivable. Les abonnes, clients avec dettes ou avec temps actif sont exclus.</p>
+      <ng-template #initialState><p class="muted">Charge une periode pour previsualiser les clients archivables. Le rapport PDF des dettes couvre toutes les dettes ouvertes.</p></ng-template>
+    </ng-template>
+  </article>
+
+  <article class="panel">
+    <div class="panel-header">
+      <div class="panel-actions-left">
+        <strong>Fichiers generes</strong>
+      </div>
+    </div>
+    <table class="table" *ngIf="generatedFiles().length > 0; else noFiles">
+      <thead>
+        <tr>
+          <th>Fichier</th>
+          <th>Type</th>
+          <th>Genere le</th>
+          <th>Par</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let file of generatedFiles()">
+          <td>{{ file.fileName }}</td>
+          <td>{{ file.fileType }}</td>
+          <td>{{ file.generatedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+          <td>{{ file.generatedBy }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #noFiles>
+      <p class="muted">Aucun fichier genere pour le moment.</p>
+    </ng-template>
+  </article>
+</section>

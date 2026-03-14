@@ -44,9 +44,9 @@ Permettre de demarrer, suivre, convertir et terminer une session de connexion, a
 - l'arret d'une session doit restituer immediatement le total a payer pour cette session
 - une session en cours peut etre mise en pause puis reprise sans quitter la liste des sessions en cours
 - le detail d'une session peut declencher une vente produit ou une vente d'abonnement en modale
-- le detail `A payer` inclut la connexion et les dettes ouvertes du client
+- le detail `A payer` inclut uniquement la connexion et les achats de la session non mis en dette
 - la modale d'arret distingue ce qui est encaisse maintenant des dettes deja ouvertes
-- le parametre d'affichage des listes de session est configurable et persiste localement
+- la fiche client complete doit etre consultable directement depuis le nom du client dans l'ecran sessions, via une modale
 
 ## Backend
 
@@ -126,12 +126,15 @@ Permettre de demarrer, suivre, convertir et terminer une session de connexion, a
 - les achats du jour et les dettes creees le jour meme sont affiches dans une chronologie unique
 - une dette issue d'une vente apparait sur la meme ligne que la vente correspondante, avec une icone rouge de non-paiement
 - le resume du detail signale seulement la presence de dettes par une icone a droite
+- cliquer sur le nom d'un client dans `Sessions en cours` ouvre une modale de fiche client avec abonnement, credit, achats et dettes
+- dans cette modale client, seuls les `10` derniers achats sont affiches initialement, avec chargement progressif par paquets de `10`
 - les dates et heures visibles dans la session suivent le format `JJ/MM/AAAA HH:mm`
 - l'arret d'une session affiche immediatement le total a payer calcule pour cette session
 - chaque ligne de session en cours propose une action `Pause` ou `Reprendre` sans sortir la session de la liste
 - le resume abonnement rappelle que les abonnements se cumulent
 - l'interface privilegie des formulaires courts, compacts et des actions immediates pour un usage comptoir
 - les colonnes et tableaux sont compactes et scrollables pour supporter un grand nombre de sessions
+- les sessions en cours sont affichees sans pagination fonctionnelle cote ecran et utilisent toute la hauteur disponible avant scroll interne
 - les formulaires `Client`, `Abonne existant` et `Nouvel abonne` restent legerement en retrait dans leur cadre, sans champs colles aux bordures
 - les boutons `Demarrer la session` et `Creer et demarrer` sont centres dans le cadre de gauche
 

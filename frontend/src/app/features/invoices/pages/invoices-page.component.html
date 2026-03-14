@@ -1,0 +1,183 @@
+<section class="page">
+  <header class="hero">
+    <div>
+      <h2>Factures</h2>
+      <div class="hero-actions">
+        <button type="button" class="ghost filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
+          <span class="filter-icon" aria-hidden="true"></span>
+          <span>Filtres</span>
+        </button>
+        <button type="button" class="secondary" (click)="openCreatePanel()">Creer une facture</button>
+      </div>
+    </div>
+  </header>
+
+  <p class="error" *ngIf="error()">{{ error() }}</p>
+  <p class="success" *ngIf="success()">{{ success() }}</p>
+
+  <form class="filters-grid collapsible" [class.is-collapsed]="!showFilters()" [formGroup]="filters">
+    <label class="field">
+      <span>Numero</span>
+      <input formControlName="invoiceNumber" placeholder="Ex. FAC-001" />
+    </label>
+    <label class="field">
+      <span>Client</span>
+      <input formControlName="customerName" placeholder="Nom du client" />
+    </label>
+    <label class="field">
+      <span>Statut</span>
+      <select formControlName="status">
+        <option value="">Tous</option>
+        <option *ngFor="let status of statusOptions" [value]="status">{{ statusLabel(status) }}</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Du</span>
+      <input type="date" formControlName="startDate" />
+    </label>
+    <label class="field">
+      <span>Au</span>
+      <input type="date" formControlName="endDate" />
+    </label>
+    <label class="field">
+      <span>Factures par page</span>
+      <select formControlName="pageSize">
+        <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+      </select>
+    </label>
+  </form>
+
+  <div class="grid">
+    <article class="panel list-panel">
+      <div class="panel-header">
+        <div class="panel-actions">
+          <button type="button" class="secondary" (click)="search()" [disabled]="loading()">
+            {{ loading() ? 'Chargement...' : 'Rechercher' }}
+          </button>
+          <p class="summary">
+            {{ invoices().length }} facture{{ invoices().length > 1 ? 's' : '' }}
+          </p>
+        </div>
+        <div class="pager" *ngIf="totalPages() > 1">
+          <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
+          <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
+          <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
+        </div>
+      </div>
+
+      <table class="table" *ngIf="paginatedInvoices().length > 0; else emptyState">
+        <thead>
+          <tr>
+            <th>Numero</th>
+            <th>Client</th>
+            <th>Emise le</th>
+            <th>Statut</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let invoice of paginatedInvoices(); trackBy: trackByInvoice" (click)="open(invoice.invoiceId)" [class.active]="selectedInvoiceId() === invoice.invoiceId">
+            <td><strong>{{ invoice.invoiceNumber }}</strong></td>
+            <td>{{ invoice.customerName }}</td>
+            <td>{{ invoice.issuedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td><span [class]="statusChipClass(invoice.status)">{{ statusLabel(invoice.status) }}</span></td>
+            <td><strong>{{ invoice.totalAmount | number:'1.2-2' }} EUR</strong></td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #emptyState>
+        <p class="muted">Aucune facture pour ces filtres.</p>
+      </ng-template>
+    </article>
+
+    <article class="panel detail-panel">
+      <div class="panel-header">
+        <h3>{{ panelMode() === 'create' ? 'Creation facture' : 'Detail facture' }}</h3>
+      </div>
+
+      <form class="stack" *ngIf="panelMode() === 'create'; else detailPanel" [formGroup]="createForm" (ngSubmit)="createInvoice()">
+        <label class="field">
+          <span>Client</span>
+          <input formControlName="customerName" placeholder="Nom du client" />
+        </label>
+        <label class="field">
+          <span>Identifiant client optionnel</span>
+          <input formControlName="customerId" placeholder="UUID client si connu" />
+        </label>
+
+        <div class="stack">
+          <div class="section-inline">
+            <h4>Lignes de facture</h4>
+            <button type="button" class="ghost" (click)="addLine()">Ajouter une ligne</button>
+          </div>
+          <div formArrayName="lines" class="stack">
+            <div class="line-grid" *ngFor="let line of lines.controls; let index = index; trackBy: trackByLine" [formGroupName]="index">
+              <label class="field line-label">
+                <span>Libelle</span>
+                <input formControlName="label" />
+              </label>
+              <label class="field">
+                <span>Qt</span>
+                <input type="number" min="1" formControlName="quantity" />
+              </label>
+              <label class="field">
+                <span>PU</span>
+                <input type="number" min="0" step="0.01" formControlName="unitPrice" />
+              </label>
+              <div class="line-actions">
+                <button type="button" class="ghost compact-remove" (click)="removeLine(index)" [disabled]="lines.length === 1">-</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" [disabled]="actionLoading()">{{ actionLoading() ? 'Creation...' : 'Creer et telecharger le PDF' }}</button>
+        </div>
+      </form>
+
+      <ng-template #detailPanel>
+      <div class="stack" *ngIf="selectedInvoice() as invoice; else noSelection">
+        <div class="facts">
+          <p><strong>Numero :</strong> {{ invoice.invoiceNumber }}</p>
+          <p><strong>Client :</strong> {{ invoice.customerName }}</p>
+          <p><strong>Date emission :</strong> {{ invoice.issuedAt | date:'dd/MM/yyyy HH:mm' }}</p>
+          <p><strong>Statut :</strong> <span [class]="statusChipClass(invoice.status)">{{ statusLabel(invoice.status) }}</span></p>
+          <p><strong>Total :</strong> {{ invoice.totalAmount | number:'1.2-2' }} EUR</p>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="ghost" (click)="reissuePdf()" [disabled]="actionLoading()">Reediter PDF</button>
+          <button type="button" class="danger" *ngIf="invoiceStatusAllowsCancel(invoice.status)" (click)="cancelInvoice()" [disabled]="actionLoading()">Annuler la facture</button>
+        </div>
+
+        <table class="table compact" *ngIf="invoice.lines.length > 0">
+          <thead>
+            <tr>
+              <th>Libelle</th>
+              <th>Quantite</th>
+              <th>PU</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let line of invoice.lines">
+              <td>{{ line.label }}</td>
+              <td>{{ line.quantity }}</td>
+              <td>{{ line.unitPrice | number:'1.2-2' }} EUR</td>
+              <td><strong>{{ line.totalPrice | number:'1.2-2' }} EUR</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p class="muted" *ngIf="detailLoading()">Chargement du detail...</p>
+      </div>
+      </ng-template>
+
+      <ng-template #noSelection>
+        <p class="muted" *ngIf="!detailLoading(); else loadingDetail">Selectionne une facture pour consulter son detail.</p>
+        <ng-template #loadingDetail><p class="muted">Chargement du detail...</p></ng-template>
+      </ng-template>
+    </article>
+  </div>
+</section>

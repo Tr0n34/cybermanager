@@ -59,6 +59,16 @@ public class CafeSessionRepositoryAdapter implements CafeSessionRepository {
         return repository.findByEndedAtIsNull().stream().map(this::toDomain).toList();
     }
 
+    @Override
+    public List<CafeSession> findByCustomerIds(List<CustomerId> customerIds) {
+        return repository.findByCustomerIdInOrderByStartedAtDesc(customerIds.stream().map(CustomerId::value).toList()).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public void deleteByCustomerIds(List<CustomerId> customerIds) {
+        repository.deleteByCustomerIdIn(customerIds.stream().map(CustomerId::value).toList());
+    }
+
     private CafeSession toDomain(CafeSessionJpaEntity entity) {
         int pausedMinutes = entity.pausedMinutes == null ? 0 : entity.pausedMinutes;
         int consumedMinutes = entity.consumedMinutes == null ? 0 : entity.consumedMinutes;

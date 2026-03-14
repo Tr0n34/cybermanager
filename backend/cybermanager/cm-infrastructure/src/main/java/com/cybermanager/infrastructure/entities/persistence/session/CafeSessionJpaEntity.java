@@ -2,6 +2,7 @@ package com.cybermanager.infrastructure.entities.persistence.session;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
@@ -9,7 +10,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "cm_sessions")
+@Table(
+        name = "cm_sessions",
+        indexes = {
+                @Index(name = "idx_cm_sessions_customer_started_at", columnList = "customerId, startedAt"),
+                @Index(name = "idx_cm_sessions_customer_ended_at", columnList = "customerId, endedAt"),
+                @Index(name = "idx_cm_sessions_paid", columnList = "paid")
+        }
+)
 public class CafeSessionJpaEntity {
     @Id
     public UUID id;

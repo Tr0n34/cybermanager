@@ -6,6 +6,8 @@ import com.cybermanager.application.commands.session.PaySessionCommand;
 import com.cybermanager.application.commands.session.RestartSessionsDayCommand;
 import com.cybermanager.application.commands.session.ResumeSessionCommand;
 import com.cybermanager.application.commands.session.StopSessionCommand;
+import com.cybermanager.application.services.sales.InvoiceNumberGenerator;
+import com.cybermanager.application.services.sales.InvoicePdfRenderer;
 import com.cybermanager.application.services.shared.BusinessException;
 import com.cybermanager.domain.model.customer.Customer;
 import com.cybermanager.domain.model.customer.CustomerId;
@@ -26,6 +28,7 @@ import com.cybermanager.domain.model.subscription.SubscriptionOfferStatus;
 import com.cybermanager.domain.port.customer.CustomerRepository;
 import com.cybermanager.domain.port.customer.DebtRepository;
 import com.cybermanager.domain.port.sales.ConnectionPricingRepository;
+import com.cybermanager.domain.port.sales.InvoiceRepository;
 import com.cybermanager.domain.port.sales.SaleRepository;
 import com.cybermanager.domain.port.session.CafeSessionRepository;
 import com.cybermanager.domain.port.subscription.SubscriptionOfferRepository;
@@ -40,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -53,7 +57,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         Customer created = Customer.createWalkIn("Alice");
 
@@ -77,7 +81,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.fromString("66666666-6666-6666-6666-666666666666");
         Customer customer = new Customer(new CustomerId(customerUuid), "Client Abonne", CustomerType.SUBSCRIBER, CustomerStatus.ACTIVE, 180);
@@ -100,7 +104,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         Customer customer = new Customer(new CustomerId(customerUuid), "Client Abonne", CustomerType.SUBSCRIBER, CustomerStatus.ACTIVE, 0);
@@ -128,7 +132,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         Customer customer = new Customer(new CustomerId(customerUuid), "Client Abonne", CustomerType.SUBSCRIBER, CustomerStatus.ACTIVE, 120);
@@ -158,7 +162,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         Customer customer = new Customer(new CustomerId(customerUuid), "Client Abonne", CustomerType.SUBSCRIBER, CustomerStatus.ACTIVE, 120);
@@ -188,7 +192,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         SessionId sessionId = new SessionId(UUID.randomUUID());
@@ -227,7 +231,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         SessionId sessionId = new SessionId(UUID.randomUUID());
@@ -270,7 +274,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         SessionId sessionId = new SessionId(UUID.randomUUID());
@@ -324,7 +328,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         SessionId sessionId = new SessionId(UUID.randomUUID());
@@ -369,14 +373,7 @@ class SessionApplicationServiceTest {
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
         SubscriptionOfferRepository subscriptionOfferRepository = mock(SubscriptionOfferRepository.class);
-        SessionApplicationService service = new SessionApplicationService(
-                sessionRepository,
-                customerRepository,
-                pricingRepository,
-                debtRepository,
-                saleRepository,
-                subscriptionOfferRepository
-        );
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, subscriptionOfferRepository);
 
         UUID customerUuid = UUID.randomUUID();
         UUID offerUuid = UUID.randomUUID();
@@ -437,7 +434,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         Customer customer = new Customer(new CustomerId(customerUuid), "Abonne live", CustomerType.SUBSCRIBER, CustomerStatus.ACTIVE, 30);
@@ -476,7 +473,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         SessionId sessionId = new SessionId(UUID.randomUUID());
@@ -517,7 +514,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         Customer customer = new Customer(new CustomerId(customerUuid), "Client attente", CustomerType.WALK_IN, CustomerStatus.ACTIVE, 0);
@@ -552,7 +549,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         Customer customer = new Customer(new CustomerId(customerUuid), "Client attente", CustomerType.WALK_IN, CustomerStatus.ACTIVE, 0);
@@ -589,7 +586,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now();
@@ -630,13 +627,72 @@ class SessionApplicationServiceTest {
     }
 
     @Test
+    void shouldStopActiveSessionsAndMoveConnectionAndSessionSalesToDebtWhenRestartingDay() {
+        CafeSessionRepository sessionRepository = mock(CafeSessionRepository.class);
+        CustomerRepository customerRepository = mock(CustomerRepository.class);
+        ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
+        DebtRepository debtRepository = mock(DebtRepository.class);
+        SaleRepository saleRepository = mock(SaleRepository.class);
+        SubscriptionOfferRepository subscriptionOfferRepository = mock(SubscriptionOfferRepository.class);
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, subscriptionOfferRepository);
+
+        UUID customerUuid = UUID.randomUUID();
+        UUID sessionUuid = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now();
+        Customer customer = new Customer(new CustomerId(customerUuid), "Client actif", CustomerType.WALK_IN, CustomerStatus.ACTIVE, 0);
+        CafeSession activeSession = new CafeSession(
+                new SessionId(sessionUuid),
+                new CustomerId(customerUuid),
+                "SESSION",
+                now.minusMinutes(30),
+                null,
+                null,
+                false,
+                0,
+                0,
+                Money.of("0")
+        );
+        Sale sessionProductSale = Sale.create(
+                customer.id(),
+                sessionUuid,
+                SaleType.PRODUCTS,
+                now.minusMinutes(10),
+                List.of(new SaleLine("Cafe", 1, Money.of("2.00"), Money.of("2.00"))),
+                Money.of("2.00")
+        );
+        ConnectionPricingRule pricingRule = new ConnectionPricingRule(List.of(new ConnectionPricingTier(30, Money.of("4.00"))));
+
+        when(sessionRepository.findAll()).thenReturn(List.of(activeSession));
+        when(customerRepository.findById(new CustomerId(customerUuid))).thenReturn(Optional.of(customer));
+        when(pricingRepository.getCurrentRule()).thenReturn(pricingRule);
+        when(sessionRepository.save(any(CafeSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(saleRepository.findByCustomerId(customer.id())).thenReturn(List.of(sessionProductSale));
+        when(debtRepository.findByCustomerId(customer.id())).thenReturn(List.of());
+
+        var result = service.execute(new RestartSessionsDayCommand());
+
+        assertEquals(1, result);
+        verify(sessionRepository, atLeastOnce()).save(argThat((CafeSession saved) ->
+                saved.endedAt() != null && saved.paid()
+        ));
+        verify(debtRepository).save(argThat((DebtRecord debt) ->
+                debt.label().startsWith("Session du ")
+                        && debt.amount().amount().compareTo(new java.math.BigDecimal("4.00")) == 0
+        ));
+        verify(debtRepository).save(argThat((DebtRecord debt) ->
+                debt.label().startsWith("1 x Cafe du ")
+                        && debt.amount().amount().compareTo(new java.math.BigDecimal("2.00")) == 0
+        ));
+    }
+
+    @Test
     void shouldExcludeSalesAlreadyPutInDebtFromAmountDue() {
         CafeSessionRepository sessionRepository = mock(CafeSessionRepository.class);
         CustomerRepository customerRepository = mock(CustomerRepository.class);
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now();
@@ -691,7 +747,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now();
@@ -743,7 +799,7 @@ class SessionApplicationServiceTest {
         ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
         DebtRepository debtRepository = mock(DebtRepository.class);
         SaleRepository saleRepository = mock(SaleRepository.class);
-        SessionApplicationService service = new SessionApplicationService(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
+        SessionApplicationService service = service(sessionRepository, customerRepository, pricingRepository, debtRepository, saleRepository, mock(SubscriptionOfferRepository.class));
 
         UUID customerUuid = UUID.randomUUID();
         SessionId sessionId = new SessionId(UUID.randomUUID());
@@ -786,5 +842,26 @@ class SessionApplicationServiceTest {
 
         var resumed = service.execute(new ResumeSessionCommand(sessionId.value()));
         assertEquals(false, resumed.paused());
+    }
+
+    private SessionApplicationService service(
+            CafeSessionRepository sessionRepository,
+            CustomerRepository customerRepository,
+            ConnectionPricingRepository pricingRepository,
+            DebtRepository debtRepository,
+            SaleRepository saleRepository,
+            SubscriptionOfferRepository subscriptionOfferRepository
+    ) {
+        return new SessionApplicationService(
+                sessionRepository,
+                customerRepository,
+                pricingRepository,
+                debtRepository,
+                saleRepository,
+                subscriptionOfferRepository,
+                mock(InvoiceRepository.class),
+                mock(InvoicePdfRenderer.class),
+                mock(InvoiceNumberGenerator.class)
+        );
     }
 }

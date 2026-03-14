@@ -12,6 +12,8 @@ public interface SaleRepository {
     Sale save(Sale sale);
     Optional<Sale> findById(SaleId saleId);
     void deleteById(SaleId saleId);
+    void deleteByCustomerIds(List<CustomerId> customerIds);
     List<Sale> findByDay(LocalDate date);
     List<Sale> findByCustomerId(CustomerId customerId);
+    List<Sale> findByCustomerIds(List<CustomerId> customerIds);
 }

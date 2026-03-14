@@ -20,6 +20,7 @@ export class MonitoringPageComponent {
   readonly detail = signal<MonitoringCustomerDetail | null>(null);
   readonly error = signal('');
   readonly showFilters = signal(false);
+  readonly draggedCustomerId = signal<string | null>(null);
   readonly customerFilter = signal('');
   readonly stateFilter = signal('ALL');
   readonly debtFilter = signal('ALL');
@@ -70,6 +71,13 @@ export class MonitoringPageComponent {
     const start = (this.currentSessionsPage() - 1) * 10;
     return sessions.slice(start, start + 10);
   });
+  readonly selectedCustomerSummary = computed(() => {
+    const detail = this.detail();
+    if (!detail) {
+      return null;
+    }
+    return this.customers().find((item) => item.customerId === detail.customerId) ?? null;
+  });
 
   constructor() {
     this.loadCustomers();
@@ -118,6 +126,35 @@ export class MonitoringPageComponent {
     this.currentPage.set(1);
   }
 
+  startCustomerDrag(event: DragEvent, customerId: string): void {
+    this.draggedCustomerId.set(customerId);
+    event.dataTransfer?.setData('text/plain', customerId);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  }
+
+  endCustomerDrag(): void {
+    this.draggedCustomerId.set(null);
+  }
+
+  allowDetailDrop(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  dropCustomerInDetail(event: DragEvent): void {
+    event.preventDefault();
+    const customerId = event.dataTransfer?.getData('text/plain') || this.draggedCustomerId();
+    this.draggedCustomerId.set(null);
+    if (!customerId) {
+      return;
+    }
+    this.loadDetail(customerId);
+  }
+
   previousPage(): void {
     this.currentPage.update((page) => Math.max(1, page - 1));
   }
@@ -159,6 +196,10 @@ export class MonitoringPageComponent {
 
   customerTypeChipClass(type: string): string {
     return this.customerTypeLabel(type) === 'Abonne' ? 'type-chip subscriber-chip' : 'type-chip walk-in-chip';
+  }
+
+  detailStateChipClass(state: string): string {
+    return state === 'TERMINEE' ? 'inline-state paid-chip' : 'inline-state active-chip';
   }
 
   private loadCustomers(): void {

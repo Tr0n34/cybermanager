@@ -1,8 +1,10 @@
-.grid{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1.25fr);gap:1rem;align-items:stretch}
-.panel-left{align-self:stretch;max-height:78vh;overflow:auto}
+.page{height:100%;min-height:0;overflow:hidden;grid-template-rows:auto auto auto minmax(0,1fr)}
+.grid{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1.25fr);gap:1rem;align-items:stretch;min-height:0;height:100%}
+.panel-left{align-self:stretch;height:100%;min-height:0;overflow:auto}
 .accordion-group{display:grid;gap:0}
-.panel-right{align-self:stretch;max-height:78vh;overflow:hidden;min-height:0;padding:.1rem .2rem .8rem}
-.current-section{min-height:0;padding-right:.1rem;align-content:start;gap:.82rem}
+.panel-right{align-self:stretch;height:100%;overflow:hidden;min-height:0;padding:.1rem .2rem .8rem}
+.current-section{min-height:0;height:100%;padding-right:.1rem;align-content:start;gap:.82rem;grid-template-rows:auto auto minmax(0,1fr)}
+.panel-right .fixed-shell{height:100%;min-height:0;max-height:none}
 .day-panel{margin-top:0}
 .day-panel>section{gap:.82rem;align-content:start}
 .mode-card{border:1px solid #e2e8f0;border-radius:0;background:#fff;overflow:hidden;transition:max-height .28s ease,transform .28s ease,box-shadow .28s ease,opacity .24s ease;max-height:4.1rem;opacity:.9}
@@ -30,6 +32,11 @@
 .table th{position:sticky;top:0;background:#fff;z-index:1}
 .table tbody tr{border-left:4px solid transparent}
 .table td.action-cell button{margin-left:auto}
+.compact tbody tr.debt-row{background:#fff1f2;color:#b91c1c}
+.compact tbody tr.debt-row:hover{background:#ffe4e6}
+.compact tbody tr.debt-row td{border-bottom-color:#fecdd3}
+.client-link{padding:0 !important;border:0 !important;background:transparent !important;color:#0f172a !important;font:inherit;font-weight:700;text-align:left;cursor:pointer}
+.client-link:hover{text-decoration:underline;color:#9a3412 !important}
 .indicator-head{width:2.4rem}
 .indicator-cell{padding-inline:.2rem}
 .session-indicator{display:inline-flex;align-items:center;justify-content:center;width:1.15rem;height:1.15rem;border-radius:999px;font-size:0;font-weight:900;line-height:1;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08)}
@@ -45,10 +52,21 @@
 .detail-row td{background:#fffaf4;padding-top:.22rem;padding-bottom:.32rem}
 .detail-card{padding:.16rem 0}
 .detail-grid{grid-template-columns:1.1fr .9fr}
+.customer-modal{width:min(56rem,92vw);max-height:85vh;overflow:auto}
+.customer-facts{display:grid;gap:.35rem;padding:.9rem 1rem;background:#fff;border-radius:1rem;border:1px solid #fed7aa}
+.customer-facts p{margin:0}
+.customer-entry-total{display:flex;align-items:center;justify-content:space-between;gap:.45rem}
+.entry-expand-toggle{min-width:1.2rem;padding:0 .28rem !important;line-height:1;font-size:1rem;font-weight:800}
 .purchase-item.debt-entry{background:#fff1f2;border-color:#fecdd3}
 .purchase-item.debt-entry strong,.purchase-item.debt-entry span:last-child{color:#b91c1c}
 .entry-actions-cell{display:inline-flex;justify-content:flex-end;align-items:center;gap:.28rem;min-width:3rem}
 .icon-remove{min-width:1.2rem;padding:0 .28rem !important;line-height:1;font-size:1rem;font-weight:800;background:transparent !important;color:#b91c1c !important}
 .debt-summary{display:flex;gap:.5rem;align-items:center}
+.money-alert-icon{position:relative;display:inline-block;width:1.3rem;height:1.1rem}
+.money-alert-icon .bill{position:absolute;border-radius:.2rem;background:linear-gradient(180deg,#fecaca,#fca5a5);border:1px solid #b91c1c;box-shadow:inset 0 0 0 1px rgba(255,255,255,.24)}
+.money-alert-icon .bill::after{content:'';position:absolute;inset:.22rem .28rem;border:1px solid rgba(127,29,29,.55);border-radius:.16rem}
+.money-alert-icon .bill.back{width:.82rem;height:.56rem;top:.26rem;left:.1rem;opacity:.78}
+.money-alert-icon .bill.front{width:.88rem;height:.6rem;top:.08rem;left:.28rem}
+.money-alert-icon .slash{position:absolute;width:.16rem;height:1.18rem;background:#991b1b;border-radius:999px;transform:rotate(38deg);top:-.04rem;left:.56rem;box-shadow:0 0 0 1px rgba(255,255,255,.2)}
 .sale-card{padding:.82rem;border-radius:1rem;background:#fff7ed;border:1px solid #fed7aa}
 @media(max-width:1100px){.grid{grid-template-columns:1fr}.panel-left,.panel-right{max-height:none;overflow:visible}.fixed-shell{height:auto;min-height:0}.filters-grid,.detail-grid{grid-template-columns:1fr}.filters-grid .field{grid-template-rows:auto auto}.filters-grid input{height:auto;min-height:0}}

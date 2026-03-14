@@ -1,0 +1,193 @@
+<section class="page">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Dashboard du jour</p>
+      <h2>Dashboard</h2>
+      <p class="lede">Suivi de la journee avec filtres de liste, detail client et historique des ventes et sessions.</p>
+      <div class="hero-actions">
+        <button type="button" class="ghost filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
+          <span class="filter-icon" aria-hidden="true"></span>
+          <span>Filtres</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <p class="error" *ngIf="error()">{{ error() }}</p>
+
+  <div class="filters-grid collapsible" [class.is-collapsed]="!showFilters()">
+    <label class="field">
+      <span>Client</span>
+      <input [ngModel]="customerFilter()" (ngModelChange)="updateCustomerFilter($event)" placeholder="Filtrer par nom" />
+    </label>
+
+    <label class="field">
+      <span>Etat</span>
+      <select [ngModel]="stateFilter()" (ngModelChange)="updateStateFilter($event)">
+        <option value="ALL">Tous</option>
+        <option *ngFor="let state of stateOptions()" [value]="state">{{ state }}</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span>Dette</span>
+      <select [ngModel]="debtFilter()" (ngModelChange)="updateDebtFilter($event)">
+        <option value="ALL">Toutes</option>
+        <option value="YES">Oui</option>
+        <option value="NO">Non</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span>Clients par page</span>
+      <select [ngModel]="pageSize()" (ngModelChange)="updatePageSize($event)">
+        <option *ngFor="let size of pageSizeOptions" [ngValue]="size">{{ size }}</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="grid">
+    <article class="panel">
+      <div class="stats">
+        <article class="stat-card">
+          <span>Argent encaisse</span>
+          <strong>{{ totalCollected() | number:'1.2-2' }} EUR</strong>
+        </article>
+        <article class="stat-card">
+          <span>Dettes actuelles</span>
+          <strong>{{ totalDebtCreated() | number:'1.2-2' }} EUR</strong>
+        </article>
+      </div>
+
+      <div class="panel-header">
+        <p class="summary">
+          {{ filteredCustomers().length }} client{{ filteredCustomers().length > 1 ? 's' : '' }}
+          <span *ngIf="filteredCustomers().length !== customers().length">sur {{ customers().length }}</span>
+        </p>
+        <div class="pager client-pager" *ngIf="totalPages() > 1">
+          <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
+          <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
+          <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
+        </div>
+      </div>
+
+      <table class="table" *ngIf="pagedCustomers().length > 0; else emptyState">
+        <thead>
+          <tr><th>Client</th><th>Type</th><th>Temps</th><th>Achats</th><th>Dette</th><th>Etat</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let item of pagedCustomers()"
+            [class.active]="detail()?.customerId === item.customerId"
+            [class.draggable-row]="true"
+            draggable="true"
+            (dragstart)="startCustomerDrag($event, item.customerId)"
+            (dragend)="endCustomerDrag()"
+          >
+            <td><strong>{{ item.name }}</strong></td>
+            <td><span [class]="customerTypeChipClass(item.type)">{{ customerTypeLabel(item.type) }}</span></td>
+            <td>{{ item.consumedMinutes }} min</td>
+            <td>{{ item.purchasesTotal | number:'1.2-2' }} EUR</td>
+            <td>{{ item.debtTotal | number:'1.2-2' }} EUR</td>
+            <td>{{ item.state }}</td>
+            <td><button type="button" (click)="loadDetail(item.customerId)">Detail</button></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ng-template #emptyState>
+        <p class="muted">Aucune activite a afficher pour ces filtres.</p>
+      </ng-template>
+    </article>
+
+    <article
+      class="panel stack detail-panel"
+      [class.open]="!!detail()"
+      [class.drop-target]="!detail()"
+      [attr.aria-hidden]="!detail()"
+      (dragover)="allowDetailDrop($event)"
+      (drop)="dropCustomerInDetail($event)"
+    >
+      <ng-container *ngIf="detail() as detail; else noSelection">
+        <div class="detail-header">
+          <div>
+            <h3>{{ detail.name }}</h3>
+            <p class="muted">Detail d'activite du jour</p>
+          </div>
+          <button type="button" class="ghost" (click)="closeDetail()">Fermer</button>
+        </div>
+
+        <div class="detail-stats">
+          <p><strong>Argent encaisse :</strong> {{ detail.totalCollected | number:'1.2-2' }} EUR</p>
+          <p><strong>Dettes actuelles :</strong> {{ detail.totalDebtCreated | number:'1.2-2' }} EUR</p>
+        </div>
+
+        <div class="detail-summary" *ngIf="selectedCustomerSummary() as summary">
+          <p><strong>Etat :</strong> <span [class]="detailStateChipClass(summary.state)">{{ summary.state }}</span></p>
+          <p><strong>Credit :</strong> {{ summary.remainingMinutes }} min</p>
+          <p><strong>Consomme :</strong> {{ summary.consumedMinutes }} min</p>
+        </div>
+
+        <section class="stack">
+          <div class="section-header">
+            <h4>{{ showFullHistory() ? 'Historique des produits' : '10 derniers produits' }}</h4>
+            <div class="pager" *ngIf="showFullHistory() && salesTotalPages() > 1">
+              <button type="button" class="ghost" (click)="previousSalesPage()" [disabled]="currentSalesPage() === 1">Precedent</button>
+              <span>Page {{ currentSalesPage() }} / {{ salesTotalPages() }}</span>
+              <button type="button" class="ghost" (click)="nextSalesPage()" [disabled]="currentSalesPage() === salesTotalPages()">Suivant</button>
+            </div>
+          </div>
+
+          <table class="table compact" *ngIf="visibleSales().length > 0; else noSales">
+            <thead>
+              <tr><th>Produit</th><th>Quantite</th><th>Prix</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let sale of visibleSales()" [class.debt-row]="sale.debt">
+                <td>{{ sale.label }}</td>
+                <td>{{ sale.quantity }}</td>
+                <td>{{ sale.totalPrice | number:'1.2-2' }} EUR</td>
+                <td>{{ sale.soldAt }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <ng-template #noSales><p class="muted">Aucun produit sur la journee.</p></ng-template>
+        </section>
+
+        <section class="stack">
+          <div class="section-header">
+            <h4>{{ showFullHistory() ? 'Historique des sessions' : '10 dernieres sessions' }}</h4>
+            <div class="pager" *ngIf="showFullHistory() && sessionsTotalPages() > 1">
+              <button type="button" class="ghost" (click)="previousSessionsPage()" [disabled]="currentSessionsPage() === 1">Precedent</button>
+              <span>Page {{ currentSessionsPage() }} / {{ sessionsTotalPages() }}</span>
+              <button type="button" class="ghost" (click)="nextSessionsPage()" [disabled]="currentSessionsPage() === sessionsTotalPages()">Suivant</button>
+            </div>
+          </div>
+
+          <table class="table compact" *ngIf="visibleSessions().length > 0; else noSessions">
+            <thead>
+              <tr><th>Date demarrage</th><th>Date arret</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let session of visibleSessions()">
+                <td>{{ session.startedAt }}</td>
+                <td>{{ session.endedAt }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <ng-template #noSessions><p class="muted">Aucune session sur la journee.</p></ng-template>
+        </section>
+
+        <div class="detail-footer" *ngIf="canShowFullHistoryButton()">
+          <button type="button" class="secondary" (click)="toggleFullHistory()">
+            {{ showFullHistory() ? "Masquer l'historique complet" : 'Historique complet' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <ng-template #noSelection>
+        <p class="muted">Selectionnez un client ou glissez-deposez-en un ici pour afficher le detail.</p>
+      </ng-template>
+    </article>
+  </div>
+</section>

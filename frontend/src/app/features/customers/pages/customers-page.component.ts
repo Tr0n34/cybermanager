@@ -28,11 +28,6 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
               <span>Filtres</span>
             </button>
             <button *ngIf="!isPanelOpen()" type="button" class="secondary" (click)="openCreatePanel()">Creer un nouveau client</button>
-            <div class="pager" *ngIf="totalPages() > 1">
-              <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
-              <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
-              <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
-            </div>
           </div>
         </div>
         <p class="lede">Les clients journaliers et abonnes crees depuis l'ecran sessions apparaissent ici. Cette page permet aussi de creer des clients et des abonnes.</p>
@@ -57,10 +52,17 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
       <div class="grid" [class.panel-open]="isPanelOpen()">
         <article class="panel list-panel">
           <div class="panel-header">
-            <p class="summary">
-              {{ filteredCustomers().length }} client{{ filteredCustomers().length > 1 ? 's' : '' }}
-              <span *ngIf="filteredCustomers().length !== customers().length">sur {{ customers().length }}</span>
-            </p>
+            <div class="panel-actions">
+              <p class="summary">
+                {{ filteredCustomers().length }} client{{ filteredCustomers().length > 1 ? 's' : '' }}
+                <span *ngIf="filteredCustomers().length !== customers().length">sur {{ customers().length }}</span>
+              </p>
+              <div class="pager" *ngIf="totalPages() > 1">
+                <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
+                <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
+                <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
+              </div>
+            </div>
           </div>
 
           <table class="table">
@@ -229,6 +231,7 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
     .filters-grid .field input, .filters-grid .field select { width: auto; min-width: 10rem; max-width: 12rem; border-radius: 999px; background: #fff; }
     input, select { padding: 0.85rem 0.95rem; border-radius: 0.85rem; border: 1px solid #cbd5e1; font: inherit; background: #fff; }
     .summary { margin: 0; color: #334155; font-weight: 600; }
+    .panel-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.85rem; flex-wrap: wrap; width: 100%; }
     .pager { display: inline-flex; align-items: center; gap: 0.75rem; color: #475569; }
     .grid { display: grid; grid-template-columns: minmax(0, 1fr) 0fr; gap: 1.25rem; align-items: start; transition: grid-template-columns 220ms ease-out; }
     .grid.panel-open { grid-template-columns: minmax(0, 1.2fr) minmax(24rem, 1fr); }

@@ -37,13 +37,23 @@ public class CustomerRepositoryAdapter implements CustomerRepository {
     }
 
     @Override
+    public void deleteByIds(List<CustomerId> customerIds) {
+        repository.deleteAllByIdInBatch(customerIds.stream().map(CustomerId::value).toList());
+    }
+
+    @Override
     public List<Customer> search(String term, CustomerType type) {
-        String search = term == null ? "" : term.toLowerCase();
-        return repository.findAll().stream()
-                .filter(item -> search.isBlank() || item.name.toLowerCase().contains(search))
-                .filter(item -> type == null || item.type.equals(type.name()))
-                .map(this::toDomain)
-                .toList();
+        String search = term == null ? "" : term.trim();
+        if (type != null && !search.isBlank()) {
+            return repository.findByTypeAndNameContainingIgnoreCaseOrderByNameAsc(type.name(), search).stream().map(this::toDomain).toList();
+        }
+        if (type != null) {
+            return repository.findByTypeOrderByNameAsc(type.name()).stream().map(this::toDomain).toList();
+        }
+        if (!search.isBlank()) {
+            return repository.findByNameContainingIgnoreCaseOrderByNameAsc(search).stream().map(this::toDomain).toList();
+        }
+        return repository.findAllByOrderByNameAsc().stream().map(this::toDomain).toList();
     }
 
     private Customer toDomain(CustomerJpaEntity entity) {

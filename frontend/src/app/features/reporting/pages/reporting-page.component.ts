@@ -16,17 +16,12 @@ import { ReportingApiService } from '../services/reporting-api.service';
       <header class="hero">
         <div>
           <p class="eyebrow">Historique</p>
-          <h2>Historique journalier</h2>
+          <h2>Historique</h2>
           <div class="hero-actions">
             <button type="button" class="ghost filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
               <span class="filter-icon" aria-hidden="true"></span>
               <span>Filtres</span>
             </button>
-            <div class="pager" *ngIf="filteredCustomers().length > 0">
-              <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
-              <p class="meta">Page {{ currentPage() }} / {{ totalPages() }}</p>
-              <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
-            </div>
           </div>
         </div>
       </header>
@@ -65,7 +60,14 @@ import { ReportingApiService } from '../services/reporting-api.service';
         <article class="panel">
           <div class="panel-head">
             <h3>Resultats</h3>
-            <p class="muted">{{ filteredCustomers().length }} resultat(s)</p>
+            <div class="panel-actions">
+              <p class="muted">{{ filteredCustomers().length }} resultat(s)</p>
+              <div class="pager" *ngIf="totalPages() > 1">
+                <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() === 1">Precedent</button>
+                <p class="meta">Page {{ currentPage() }} / {{ totalPages() }}</p>
+                <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Suivant</button>
+              </div>
+            </div>
           </div>
           <table class="table" *ngIf="pagedCustomers().length > 0; else emptyState">
             <thead>
@@ -179,6 +181,8 @@ import { ReportingApiService } from '../services/reporting-api.service';
     .panel,.stat-card{background:#fff;padding:1rem;border-radius:1rem}
     .side-column{align-content:start}
     .panel-head,.side-head{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+    .panel-actions{display:flex;align-items:center;justify-content:flex-end;gap:.85rem;flex-wrap:wrap}
+    .pager{display:inline-flex;align-items:center;gap:.7rem}
     .panel-head h3,.side-head h3,.hero h2{margin:0}
     .stats{display:grid;grid-template-columns:1fr;gap:.75rem}
     .stat-card span{display:block;color:#64748b;font-size:.8rem}
@@ -216,6 +220,7 @@ export class ReportingPageComponent {
   readonly term = signal('');
   readonly showFilters = signal(false);
   readonly currentPage = signal(1);
+  readonly pageSize = signal(10);
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filteredCustomers().length / this.pageSize())));
   readonly pagedCustomers = computed(() => {
     const start = (this.currentPage() - 1) * this.pageSize();
@@ -230,7 +235,6 @@ export class ReportingPageComponent {
     term: [''],
     pageSize: [10],
   });
-  readonly pageSize = computed(() => Number(this.form.controls.pageSize.value ?? 10) || 10);
 
   constructor() {
     this.form.controls.term.valueChanges
@@ -250,7 +254,10 @@ export class ReportingPageComponent {
 
     this.form.controls.pageSize.valueChanges
       .pipe(distinctUntilChanged(), takeUntilDestroyed())
-      .subscribe(() => this.currentPage.set(1));
+      .subscribe((value) => {
+        this.pageSize.set(Number(value ?? 10) || 10);
+        this.currentPage.set(1);
+      });
 
     this.load();
   }

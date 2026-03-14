@@ -15,6 +15,9 @@ import { SessionDisplaySettingsPageComponent } from './features/sessions/pages/s
 import { MonitoringPageComponent } from './features/monitoring/pages/monitoring-page.component';
 import { ReportingPageComponent } from './features/reporting/pages/reporting-page.component';
 import { DebtsPageComponent } from './features/debts/pages/debts-page.component';
+import { ArchivingPageComponent } from './features/archiving/pages/archiving-page.component';
+import { InvoicesPageComponent } from './features/invoices/pages/invoices-page.component';
+import { CompanyPageComponent } from './features/company/pages/company-page.component';
 
 export const routes: Routes = [
   {
@@ -38,6 +41,9 @@ export const routes: Routes = [
       { path: 'sessions', component: SessionsPageComponent },
       { path: 'sessions/settings', component: SessionDisplaySettingsPageComponent },
       { path: 'debts', component: DebtsPageComponent },
+      { path: 'archiving', component: ArchivingPageComponent },
+      { path: 'invoices', component: InvoicesPageComponent },
+      { path: 'company', component: CompanyPageComponent },
       { path: 'monitoring', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'reporting', component: ReportingPageComponent },
     ],

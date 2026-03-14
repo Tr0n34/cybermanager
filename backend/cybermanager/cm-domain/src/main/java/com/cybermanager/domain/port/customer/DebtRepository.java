@@ -11,6 +11,8 @@ public interface DebtRepository {
     DebtRecord save(DebtRecord debtRecord);
     Optional<DebtRecord> findById(DebtId debtId);
     void deleteById(DebtId debtId);
+    void deleteByCustomerIds(List<CustomerId> customerIds);
     List<DebtRecord> findByCustomerId(CustomerId customerId);
+    List<DebtRecord> findByCustomerIds(List<CustomerId> customerIds);
     List<DebtRecord> findOpenDebts();
 }

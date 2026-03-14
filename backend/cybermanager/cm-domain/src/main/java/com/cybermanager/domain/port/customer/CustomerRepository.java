@@ -10,6 +10,7 @@ import java.util.Optional;
 public interface CustomerRepository {
     Customer save(Customer customer);
     Optional<Customer> findById(CustomerId customerId);
+    void deleteByIds(List<CustomerId> customerIds);
     List<Customer> search(String term, CustomerType type);
 }
 

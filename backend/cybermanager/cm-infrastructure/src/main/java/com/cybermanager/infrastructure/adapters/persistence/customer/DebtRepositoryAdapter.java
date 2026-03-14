@@ -46,8 +46,18 @@ public class DebtRepositoryAdapter implements DebtRepository {
     }
 
     @Override
+    public void deleteByCustomerIds(List<CustomerId> customerIds) {
+        repository.deleteByCustomerIdIn(customerIds.stream().map(CustomerId::value).toList());
+    }
+
+    @Override
     public List<DebtRecord> findByCustomerId(CustomerId customerId) {
         return repository.findByCustomerId(customerId.value()).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<DebtRecord> findByCustomerIds(List<CustomerId> customerIds) {
+        return repository.findByCustomerIdIn(customerIds.stream().map(CustomerId::value).toList()).stream().map(this::toDomain).toList();
     }
 
     @Override

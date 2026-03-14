@@ -1,0 +1,70 @@
+<section class="page">
+  <header class="hero">
+    <div>
+      <h2>Entreprise</h2>
+      <p class="muted">{{ hasCompany() ? 'Met a jour les informations legales et commerciales utilisees sur les factures.' : 'Renseigne l entreprise une premiere fois pour les factures PDF.' }}</p>
+    </div>
+  </header>
+
+  <p class="error" *ngIf="error()">{{ error() }}</p>
+  <p class="success" *ngIf="success()">{{ success() }}</p>
+
+  <article class="panel" *ngIf="!loading(); else loadingState">
+    <div class="panel-header">
+      <div class="panel-actions-left">
+        <h3>{{ hasCompany() ? (editing() ? 'Modification entreprise' : 'Fiche entreprise') : 'Creation entreprise' }}</h3>
+        <button type="button" class="ghost" *ngIf="hasCompany() && !editing()" (click)="startEditing()">Modifier</button>
+      </div>
+    </div>
+
+    <form class="form-grid" [formGroup]="form" (ngSubmit)="save()">
+      <label class="field wide">
+        <span>Raison sociale</span>
+        <input formControlName="legalName" />
+      </label>
+      <label class="field">
+        <span>SIRET</span>
+        <input formControlName="siret" />
+      </label>
+      <label class="field">
+        <span>Telephone</span>
+        <input formControlName="phone" />
+      </label>
+      <label class="field">
+        <span>Email</span>
+        <input formControlName="email" />
+      </label>
+      <label class="field wide">
+        <span>Adresse</span>
+        <input formControlName="addressLine1" />
+      </label>
+      <label class="field wide">
+        <span>Complement d adresse</span>
+        <input formControlName="addressLine2" />
+      </label>
+      <label class="field">
+        <span>Code postal</span>
+        <input formControlName="postalCode" />
+      </label>
+      <label class="field">
+        <span>Ville</span>
+        <input formControlName="city" />
+      </label>
+      <label class="field">
+        <span>Pays</span>
+        <input formControlName="country" />
+      </label>
+
+      <div class="actions wide">
+        <button type="button" class="ghost" *ngIf="editing() && hasCompany()" (click)="cancelEditing()">Annuler</button>
+        <button type="submit" *ngIf="editing() || !hasCompany()" [disabled]="saving()">{{ saving() ? 'Enregistrement...' : 'Enregistrer' }}</button>
+      </div>
+    </form>
+  </article>
+
+  <ng-template #loadingState>
+    <article class="panel">
+      <p class="muted">Chargement de l entreprise...</p>
+    </article>
+  </ng-template>
+</section>

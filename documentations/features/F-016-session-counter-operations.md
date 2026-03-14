@@ -39,6 +39,12 @@ Fournir un ecran `Sessions` compacte, orientee comptoir, qui centralise les acti
 - les abonnements d'un meme client sont cumulables et augmentent le credit disponible
 - dans la modale de paiement, un abonnement ajoute pendant le reglement augmente d'abord le credit, reduit le cout du depassement eventuel, puis ajoute son propre prix au montant final a regler
 - la colonne `A payer` d'une session doit suivre la meme regle que la modale de paiement pour les abonnements deja rattaches a la session
+- l'action `Fin de journee` cloture aussi les sessions encore actives
+- lors de la `Fin de journee`, le cout de connexion restant et les achats rattaches a chaque session non soldee sont passes en dette
+- la modale de paiement affiche les dettes ouvertes separement et ne les additionne pas silencieusement au reglement de la session
+- pendant le paiement, l'ajout ou le retrait d'un abonnement met a jour immediatement le montant a regler
+- la modale de paiement peut proposer l'ajout d'un abonnement meme pour un client journalier si une offre est disponible
+- tant qu'une session arretee n'est pas payee, un abonnement vendu dans son detail peut etre supprime
 
 ## Backend
 
@@ -100,6 +106,12 @@ Fournir un ecran `Sessions` compacte, orientee comptoir, qui centralise les acti
 - la vente d'un abonnement depuis une session se fait dans une modale
 - l'arret d'une session ouvre une modale de validation du paiement avec detail `Connexion`, `Achats`, `Total du jour`, `Dettes ouvertes`
 - la modale de paiement peut ajouter un ou plusieurs abonnements et recalculer immediatement le montant `A payer`
+- le bouton `Fin de journee` cloture toutes les sessions encore visibles dans `Sessions en cours` et les retire ensuite de cette liste
+- le nom du client dans la liste ouvre une modale de fiche client complete, alignee sur l'ecran `Clients`
+- dans cette modale client, les dettes restent rouges comme dans la fiche client classique
+- cette modale client affiche les `10` derniers achats puis permet de charger `10` achats de plus avec `+` et de replier avec `-`
+- l'ecran `Sessions` n'affiche plus de bouton `Configurer l'affichage`
+- la liste `Sessions en cours` est affichee en continu, sans pagination visible, et exploite toute la hauteur disponible avant scroll interne
 
 ## Criteres d'acceptation
 

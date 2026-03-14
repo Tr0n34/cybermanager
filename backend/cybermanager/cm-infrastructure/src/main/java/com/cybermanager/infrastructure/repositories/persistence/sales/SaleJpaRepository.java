@@ -10,4 +10,6 @@ import java.util.UUID;
 public interface SaleJpaRepository extends JpaRepository<SaleJpaEntity, UUID> {
     List<SaleJpaEntity> findBySoldAtBetween(LocalDateTime start, LocalDateTime end);
     List<SaleJpaEntity> findByCustomerIdOrderBySoldAtDesc(UUID customerId);
+    List<SaleJpaEntity> findByCustomerIdInOrderBySoldAtDesc(List<UUID> customerIds);
+    void deleteByCustomerIdIn(List<UUID> customerIds);
 }

@@ -56,6 +56,11 @@ public class SaleRepositoryAdapter implements SaleRepository {
     }
 
     @Override
+    public void deleteByCustomerIds(List<CustomerId> customerIds) {
+        repository.deleteByCustomerIdIn(customerIds.stream().map(CustomerId::value).toList());
+    }
+
+    @Override
     public List<Sale> findByDay(LocalDate date) {
         return repository.findBySoldAtBetween(date.atStartOfDay(), date.plusDays(1).atStartOfDay()).stream().map(this::toDomain).toList();
     }
@@ -63,6 +68,11 @@ public class SaleRepositoryAdapter implements SaleRepository {
     @Override
     public List<Sale> findByCustomerId(CustomerId customerId) {
         return repository.findByCustomerIdOrderBySoldAtDesc(customerId.value()).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<Sale> findByCustomerIds(List<CustomerId> customerIds) {
+        return repository.findByCustomerIdInOrderBySoldAtDesc(customerIds.stream().map(CustomerId::value).toList()).stream().map(this::toDomain).toList();
     }
 
     private Sale toDomain(SaleJpaEntity entity) {

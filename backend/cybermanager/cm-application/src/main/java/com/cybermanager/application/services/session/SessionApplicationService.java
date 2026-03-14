@@ -2,6 +2,7 @@ package com.cybermanager.application.services.session;
 
 import com.cybermanager.application.commands.session.PauseSessionCommand;
 import com.cybermanager.application.commands.session.PaySessionCommand;
+import com.cybermanager.application.commands.session.PaySessionAndCreateInvoiceCommand;
 import com.cybermanager.application.commands.session.RestartSessionsDayCommand;
 import com.cybermanager.application.commands.session.ResumeSessionCommand;
 import com.cybermanager.application.commands.session.StartSessionCommand;
@@ -12,6 +13,7 @@ import com.cybermanager.application.services.shared.BusinessErrorType;
 import com.cybermanager.application.services.shared.BusinessException;
 import com.cybermanager.application.usecases.session.GetCurrentSessionsUseCase;
 import com.cybermanager.application.usecases.session.PaySessionUseCase;
+import com.cybermanager.application.usecases.session.PaySessionAndCreateInvoiceUseCase;
 import com.cybermanager.application.usecases.session.PauseSessionUseCase;
 import com.cybermanager.application.usecases.session.ResumeSessionUseCase;
 import com.cybermanager.application.usecases.session.RestartSessionsDayUseCase;
@@ -20,6 +22,9 @@ import com.cybermanager.application.usecases.session.StartSessionUseCase;
 import com.cybermanager.application.usecases.session.StopSessionUseCase;
 import com.cybermanager.application.views.session.CurrentSessionsView;
 import com.cybermanager.application.views.session.SessionView;
+import com.cybermanager.application.views.sales.InvoicePdfView;
+import com.cybermanager.application.services.sales.InvoiceNumberGenerator;
+import com.cybermanager.application.services.sales.InvoicePdfRenderer;
 import com.cybermanager.domain.model.customer.Customer;
 import com.cybermanager.domain.model.customer.CustomerId;
 import com.cybermanager.domain.model.customer.CustomerStatus;
@@ -27,6 +32,9 @@ import com.cybermanager.domain.model.customer.CustomerType;
 import com.cybermanager.domain.model.customer.DebtRecord;
 import com.cybermanager.domain.model.customer.DebtStatus;
 import com.cybermanager.domain.model.sales.ConnectionPricingRule;
+import com.cybermanager.domain.model.sales.Invoice;
+import com.cybermanager.domain.model.sales.InvoiceLine;
+import com.cybermanager.domain.model.sales.InvoiceStatus;
 import com.cybermanager.domain.model.sales.Sale;
 import com.cybermanager.domain.model.sales.SaleLine;
 import com.cybermanager.domain.model.sales.SaleType;
@@ -36,6 +44,7 @@ import com.cybermanager.domain.model.shared.Money;
 import com.cybermanager.domain.port.customer.CustomerRepository;
 import com.cybermanager.domain.port.customer.DebtRepository;
 import com.cybermanager.domain.port.sales.ConnectionPricingRepository;
+import com.cybermanager.domain.port.sales.InvoiceRepository;
 import com.cybermanager.domain.port.sales.SaleRepository;
 import com.cybermanager.domain.port.session.CafeSessionRepository;
 import com.cybermanager.domain.port.subscription.SubscriptionOfferRepository;
@@ -57,6 +66,7 @@ public class SessionApplicationService implements
         StartSessionUseCase,
         StopSessionUseCase,
         PaySessionUseCase,
+        PaySessionAndCreateInvoiceUseCase,
         PauseSessionUseCase,
         ResumeSessionUseCase,
         RestartSessionsDayUseCase,
@@ -71,6 +81,9 @@ public class SessionApplicationService implements
     private final DebtRepository debtRepository;
     private final SaleRepository saleRepository;
     private final SubscriptionOfferRepository subscriptionOfferRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final InvoicePdfRenderer invoicePdfRenderer;
+    private final InvoiceNumberGenerator invoiceNumberGenerator;
 
     public SessionApplicationService(
             CafeSessionRepository sessionRepository,
@@ -78,7 +91,10 @@ public class SessionApplicationService implements
             ConnectionPricingRepository connectionPricingRepository,
             DebtRepository debtRepository,
             SaleRepository saleRepository,
-            SubscriptionOfferRepository subscriptionOfferRepository
+            SubscriptionOfferRepository subscriptionOfferRepository,
+            InvoiceRepository invoiceRepository,
+            InvoicePdfRenderer invoicePdfRenderer,
+            InvoiceNumberGenerator invoiceNumberGenerator
     ) {
         this.sessionRepository = sessionRepository;
         this.customerRepository = customerRepository;
@@ -86,6 +102,9 @@ public class SessionApplicationService implements
         this.debtRepository = debtRepository;
         this.saleRepository = saleRepository;
         this.subscriptionOfferRepository = subscriptionOfferRepository;
+        this.invoiceRepository = invoiceRepository;
+        this.invoicePdfRenderer = invoicePdfRenderer;
+        this.invoiceNumberGenerator = invoiceNumberGenerator;
     }
 
     @Override
@@ -175,39 +194,22 @@ public class SessionApplicationService implements
     @Override
     public SessionView execute(PaySessionCommand command) {
         LOGGER.info("Paying stopped session sessionId={} amountPaid={}", command.sessionId(), command.amountPaid());
-        var session = sessionRepository.findById(new SessionId(command.sessionId()))
-                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SESSION_NOT_FOUND", "Session not found"));
-        if (session.endedAt() == null) {
-            LOGGER.warn("Pay rejected because session is still active sessionId={}", command.sessionId());
-            throw new BusinessException(BusinessErrorType.CONFLICT, "SESSION_NOT_STOPPED", "Session must be stopped before payment");
-        }
-        if (session.paid()) {
-            LOGGER.warn("Pay rejected because session is already paid sessionId={}", command.sessionId());
-            throw new BusinessException(BusinessErrorType.CONFLICT, "SESSION_ALREADY_PAID", "Session is already paid");
-        }
-        var customer = customerRepository.findById(session.customerId())
-                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
+        var result = settleSession(command.sessionId(), command.amountPaid(), command.subscriptionOfferIds(), command.createSubscriptionDebt());
+        return toView(result.session(), result.customer());
+    }
 
-        customer = applyPaymentSubscriptionOffers(session, customer, command.subscriptionOfferIds(), command.createSubscriptionDebt());
-
-        BigDecimal paidAmount = command.amountPaid() == null ? BigDecimal.ZERO : command.amountPaid().max(BigDecimal.ZERO);
-        BigDecimal expectedAmount = computeFinancialSnapshot(session, customer).totalAmountDue().amount();
-        BigDecimal remainingAmount = expectedAmount.subtract(paidAmount).max(BigDecimal.ZERO);
-
-        if (remainingAmount.signum() > 0) {
-            var debt = DebtRecord.create(
-                    customer.id(),
-                    sessionDebtLabel(customer.type(), session.startedAt()),
-                    new Money(remainingAmount),
-                    LocalDateTime.now()
-            );
-            debtRepository.save(debt);
-            LOGGER.info("Remaining session amount moved to debt sessionId={} customerId={} remainingAmount={}", session.id().value(), customer.id().value(), remainingAmount);
-        }
-
-        var paidSession = sessionRepository.save(session.stop(session.endedAt(), computeFinancialSnapshot(session, customer).connectionAmount(), true));
-        LOGGER.info("Session marked as paid sessionId={} customerId={} expectedAmount={} paidAmount={}", paidSession.id().value(), customer.id().value(), expectedAmount, paidAmount);
-        return toView(paidSession, customer);
+    @Override
+    public InvoicePdfView execute(PaySessionAndCreateInvoiceCommand command) {
+        LOGGER.info("Paying stopped session with invoice sessionId={} amountPaid={}", command.sessionId(), command.amountPaid());
+        var result = settleSession(command.sessionId(), command.amountPaid(), command.subscriptionOfferIds(), command.createSubscriptionDebt());
+        Invoice invoice = createInvoiceForPaidSession(result);
+        return new InvoicePdfView(
+                invoice.id(),
+                invoice.invoiceNumber(),
+                invoice.invoiceNumber() + ".pdf",
+                "application/pdf",
+                invoicePdfRenderer.render(invoice)
+        );
     }
 
     @Override
@@ -266,26 +268,27 @@ public class SessionApplicationService implements
 
     @Override
     public int execute(RestartSessionsDayCommand command) {
-        var stoppedUnpaidSessions = sessionRepository.findAll().stream()
-                .filter(session -> session.endedAt() != null && !session.paid())
+        var sessionsToClose = sessionRepository.findAll().stream()
+                .filter(session -> !session.paid())
                 .toList();
 
-        for (var session : stoppedUnpaidSessions) {
+        for (var session : sessionsToClose) {
             var customer = customerRepository.findById(session.customerId())
                     .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
-            if (session.calculatedPrice().amount().signum() > 0) {
+            var closedSession = closeSessionForDayEnd(session, customer);
+            if (closedSession.calculatedPrice().amount().signum() > 0) {
                 debtRepository.save(DebtRecord.create(
                         customer.id(),
-                        sessionDebtLabel(customer.type(), session.startedAt()),
-                        session.calculatedPrice(),
+                        sessionDebtLabel(customer.type(), closedSession.startedAt()),
+                        closedSession.calculatedPrice(),
                         LocalDateTime.now()
                 ));
             }
-            createDebtsForUnpaidSales(customer.id(), session.endedAt() == null ? session.startedAt().toLocalDate() : session.endedAt().toLocalDate());
-            sessionRepository.save(session.markPaid());
+            createDebtsForSessionSales(closedSession, customer);
+            sessionRepository.save(closedSession.markPaid());
         }
-        LOGGER.info("Sessions day restart executed archivedSessionCount={}", stoppedUnpaidSessions.size());
-        return stoppedUnpaidSessions.size();
+        LOGGER.info("Sessions day restart executed archivedSessionCount={}", sessionsToClose.size());
+        return sessionsToClose.size();
     }
 
     private String sessionDebtLabel(CustomerType customerType, LocalDateTime startedAt) {
@@ -327,12 +330,40 @@ public class SessionApplicationService implements
         return updatedCustomer;
     }
 
-    private void createDebtsForUnpaidSales(CustomerId customerId, LocalDate day) {
-        var existingOpenDebts = debtRepository.findByCustomerId(customerId).stream()
+    private CafeSession closeSessionForDayEnd(CafeSession session, Customer customer) {
+        if (session.endedAt() != null) {
+            return session;
+        }
+
+        LocalDateTime stoppedAt = LocalDateTime.now();
+        Money price = Money.of("0");
+        if (customer.type() == CustomerType.WALK_IN) {
+            ConnectionPricingRule pricing = connectionPricingRepository.getCurrentRule();
+            int minutes = session.consumedMinutesUntil(stoppedAt);
+            price = pricing.priceForMinutes(minutes);
+        } else {
+            int consumedMinutes = session.consumedMinutesUntil(stoppedAt);
+            int availableMinutes = customer.remainingMinutes();
+            int overtimeMinutes = Math.max(0, consumedMinutes - availableMinutes);
+            if (overtimeMinutes > 0) {
+                ConnectionPricingRule pricing = connectionPricingRepository.getCurrentRule();
+                price = pricing.priceForMinutes(overtimeMinutes);
+            }
+            customerRepository.save(customer.deductMinutes(consumedMinutes));
+        }
+        return session.stop(stoppedAt, price, false);
+    }
+
+    private void createDebtsForSessionSales(CafeSession session, Customer customer) {
+        LocalDateTime referenceTime = session.endedAt() == null ? LocalDateTime.now() : session.endedAt();
+        var existingOpenDebts = debtRepository.findByCustomerId(customer.id()).stream()
                 .filter(debt -> debt.status() == DebtStatus.OPEN)
                 .toList();
-        saleRepository.findByCustomerId(customerId).stream()
-                .filter(sale -> sale.soldAt().toLocalDate().equals(day))
+        saleRepository.findByCustomerId(customer.id()).stream()
+                .filter(sale -> session.id().value().equals(sale.sessionId())
+                        || (sale.sessionId() == null
+                        && !sale.soldAt().isBefore(session.startedAt())
+                        && !sale.soldAt().isAfter(referenceTime)))
                 .filter(sale -> existingOpenDebts.stream().noneMatch(debt ->
                         debt.label().equals(debtLabelForSale(sale))
                                 && debt.amount().amount().compareTo(sale.totalAmount().amount()) == 0))
@@ -496,6 +527,104 @@ public class SessionApplicationService implements
             BigDecimal payablePurchasesAmount,
             Money totalAmountDue,
             Money totalPaidAmount
+    ) {
+    }
+
+    private PaidSessionResult settleSession(java.util.UUID sessionId, BigDecimal amountPaid, List<java.util.UUID> subscriptionOfferIds, boolean createSubscriptionDebt) {
+        var session = sessionRepository.findById(new SessionId(sessionId))
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SESSION_NOT_FOUND", "Session not found"));
+        if (session.endedAt() == null) {
+            LOGGER.warn("Pay rejected because session is still active sessionId={}", sessionId);
+            throw new BusinessException(BusinessErrorType.CONFLICT, "SESSION_NOT_STOPPED", "Session must be stopped before payment");
+        }
+        if (session.paid()) {
+            LOGGER.warn("Pay rejected because session is already paid sessionId={}", sessionId);
+            throw new BusinessException(BusinessErrorType.CONFLICT, "SESSION_ALREADY_PAID", "Session is already paid");
+        }
+        var customer = customerRepository.findById(session.customerId())
+                .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
+
+        customer = applyPaymentSubscriptionOffers(session, customer, subscriptionOfferIds, createSubscriptionDebt);
+
+        SessionFinancialSnapshot snapshot = computeFinancialSnapshot(session, customer);
+        BigDecimal paid = amountPaid == null ? BigDecimal.ZERO : amountPaid.max(BigDecimal.ZERO);
+        BigDecimal expected = snapshot.totalAmountDue().amount();
+        BigDecimal remainingAmount = expected.subtract(paid).max(BigDecimal.ZERO);
+
+        if (remainingAmount.signum() > 0) {
+            debtRepository.save(DebtRecord.create(
+                    customer.id(),
+                    sessionDebtLabel(customer.type(), session.startedAt()),
+                    new Money(remainingAmount),
+                    LocalDateTime.now()
+            ));
+            LOGGER.info("Remaining session amount moved to debt sessionId={} customerId={} remainingAmount={}", session.id().value(), customer.id().value(), remainingAmount);
+        }
+
+        var paidSession = sessionRepository.save(session.stop(session.endedAt(), snapshot.connectionAmount(), true));
+        LOGGER.info("Session marked as paid sessionId={} customerId={} expectedAmount={} paidAmount={}", paidSession.id().value(), customer.id().value(), expected, paid);
+        return new PaidSessionResult(customer, paidSession, snapshot);
+    }
+
+    private Invoice createInvoiceForPaidSession(PaidSessionResult result) {
+        List<InvoiceLine> lines = new java.util.ArrayList<>();
+        if (result.snapshot().connectionAmount().amount().signum() > 0) {
+            lines.add(new InvoiceLine(
+                    "Connexion session du " + DateTimeLabelFormatter.format(result.session().startedAt()),
+                    1,
+                    result.snapshot().connectionAmount(),
+                    result.snapshot().connectionAmount()
+            ));
+        }
+
+        for (Sale sale : payableSalesOfSession(result.session(), result.customer())) {
+            for (SaleLine line : sale.lines()) {
+                lines.add(new InvoiceLine(line.label(), line.quantity(), line.unitPrice(), line.totalPrice()));
+            }
+        }
+
+        if (lines.isEmpty()) {
+            lines.add(new InvoiceLine("Reglement de session", 1, Money.of("0"), Money.of("0")));
+        }
+
+        Money total = lines.stream().map(InvoiceLine::totalPrice).reduce(Money.of("0"), Money::add);
+        return invoiceRepository.save(new Invoice(
+                java.util.UUID.randomUUID(),
+                null,
+                invoiceNumberGenerator.next(),
+                result.customer().id(),
+                result.customer().name(),
+                LocalDateTime.now(),
+                InvoiceStatus.ISSUED,
+                total,
+                lines
+        ));
+    }
+
+    private List<Sale> payableSalesOfSession(CafeSession session, Customer customer) {
+        var sales = salesOfSession(session, customer);
+        var openDebts = debtRepository.findByCustomerId(customer.id()).stream()
+                .filter(debt -> debt.status() == DebtStatus.OPEN)
+                .toList();
+        return sales.stream()
+                .filter(sale -> openDebts.stream().noneMatch(debt ->
+                        debt.label().equals(debtLabelForSale(sale))
+                                && debt.amount().amount().compareTo(sale.totalAmount().amount()) == 0))
+                .toList();
+    }
+
+    private List<Sale> salesOfSession(CafeSession session, Customer customer) {
+        LocalDateTime referenceTime = session.endedAt() == null ? LocalDateTime.now() : session.endedAt();
+        return saleRepository.findByCustomerId(customer.id()).stream()
+                .filter(sale -> session.id().value().equals(sale.sessionId())
+                        || (sale.sessionId() == null && !sale.soldAt().isBefore(session.startedAt()) && !sale.soldAt().isAfter(referenceTime)))
+                .toList();
+    }
+
+    private record PaidSessionResult(
+            Customer customer,
+            CafeSession session,
+            SessionFinancialSnapshot snapshot
     ) {
     }
 }

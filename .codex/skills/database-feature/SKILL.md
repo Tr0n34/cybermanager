@@ -12,6 +12,7 @@ Utiliser cette skill lorsqu'une demande concerne :
 - des scripts d'initialisation ou de migration
 - un schema, des index, contraintes ou roles SQL
 - des besoins de seed techniques ou de reference data
+- une optimisation de performance sur requetes de recherche, filtrage, archivage ou purge
 
 ## Required inputs
 
@@ -29,6 +30,13 @@ Utiliser cette skill lorsqu'une demande concerne :
 - documenter les variables d'environnement et le mode de demarrage
 - ne pas casser la compatibilite avec les modules backend existants
 - si JPA cree les tables, les scripts SQL doivent se limiter aux extensions, schemas, roles, seed techniques et pre-requis serveur
+- toute nouvelle recherche metier potentiellement volumique doit etre accompagnee d'une verification d'index
+- privilegier les filtrages en base plutot qu'un `findAll()` suivi d'un filtrage en memoire
+- pour les ecrans d'archivage, de reporting ou de purge :
+  - identifier les colonnes de filtre exactes
+  - indexer les colonnes de filtre et de tri les plus frequentes
+  - verifier les suppressions batch et l'ordre de suppression des dependances
+  - preferer des operations atomiques et transactionnelles
 
 ## Steps
 
@@ -38,6 +46,7 @@ Utiliser cette skill lorsqu'une demande concerne :
    - structure SQL
    - droits
    - performance
+   - volumetrie et pattern de lecture/ecriture
 
 2. Definir l'arborescence de configuration :
    - `configuration/<projet>/Dockerfile`
@@ -56,17 +65,22 @@ Utiliser cette skill lorsqu'une demande concerne :
    - schema
    - roles si necessaire
    - donnees techniques minimales
+   - index et contraintes relies aux nouveaux filtres si necessaire
 
 5. Documenter :
    - lancement
    - prerequis
    - points de vigilance
+   - impact performance attendu
+   - hypotheses de volumetrie si elles pilotent le choix d'index
 
 6. Verifier :
    - coherence avec AGENTS.md
    - pas de logique metier lourde en SQL
    - demarrage reproductible
    - securite minimale sur l'authentification
+   - coherence des index avec les requetes du code
+   - absence de suppression partielle sur les workflows d'archivage
 
 ## Output format
 
@@ -75,4 +89,5 @@ Toujours fournir :
 - fichiers crees / modifies
 - variables d'environnement
 - commandes de lancement
+- index ou optimisations ajoutes
 - points de vigilance

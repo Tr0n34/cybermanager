@@ -1,7 +1,9 @@
 html, body {
   margin: 0;
-  min-height: 100%;
+  min-height: 100dvh;
+  height: 100dvh;
   font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  overflow: hidden;
 }
 
 * {
@@ -9,6 +11,12 @@ html, body {
 }
 
 :root {
+  --cm-app-height: 100dvh;
+  --cm-page-padding: clamp(0.75rem, 1.2dvh, 2rem);
+  --cm-panel-padding: clamp(0.75rem, 1dvh, 1rem);
+  --cm-compact-gap: clamp(0.45rem, 0.8dvh, 0.75rem);
+  --cm-fixed-shell-height: clamp(20rem, calc(100dvh - 14rem), 48rem);
+  --cm-title-font: "Lucida Console", "Consolas", "Courier New", monospace;
   --cm-btn-primary-bg: linear-gradient(135deg, #1d3557, #274c77);
   --cm-btn-primary-shadow: 0 12px 28px rgba(29, 53, 87, 0.22);
   --cm-btn-secondary-bg: #e2e8f0;
@@ -37,12 +45,28 @@ body {
   flex-wrap: wrap;
 }
 
-.eyebrow {
-  margin: 0;
-  color: #0f766e;
+.page .eyebrow {
+  display: none;
+}
+
+.page h1,
+.page h2,
+.page h3 {
+  font-family: var(--cm-title-font);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: #1d3557;
+}
+
+.page h2 {
+  font-size: clamp(1.34rem, 2.2dvh, 1.78rem);
+  line-height: 1.04;
+  margin: 0;
+}
+
+.page h3 {
+  font-size: clamp(0.96rem, 1.58dvh, 1.18rem);
+  line-height: 1.08;
 }
 
 .lede {
@@ -80,11 +104,11 @@ body {
 .section-head,
 .actions,
 .pager {
-  gap: 0.75rem !important;
+  gap: var(--cm-compact-gap) !important;
 }
 
 .panel {
-  padding: 1rem !important;
+  padding: var(--cm-panel-padding) !important;
 }
 
 .field {
@@ -174,8 +198,9 @@ body {
 }
 
 .fixed-shell {
-  height: 25rem;
-  min-height: 25rem;
+  height: var(--cm-fixed-shell-height);
+  min-height: min(18rem, var(--cm-fixed-shell-height));
+  max-height: var(--cm-fixed-shell-height);
 }
 
 .filters-grid {
@@ -572,7 +597,7 @@ button.danger,
   width: min(32rem, 100%);
   background: #ffffff;
   border-radius: 1rem;
-  padding: 1rem;
+  padding: var(--cm-panel-padding);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.26);
 }
 

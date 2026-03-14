@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 
 import { environment } from '../../../../environments/environment';
@@ -29,6 +29,10 @@ export class SessionsApiService {
     return this.http.post<CafeSession>(`${this.baseUrl}/${sessionId}/pay`, payload);
   }
 
+  payWithInvoice(sessionId: string, payload: { amountPaid: number; subscriptionOfferIds: string[]; createSubscriptionDebt: boolean }) {
+    return this.http.post(`${this.baseUrl}/${sessionId}/pay-with-invoice`, payload, { observe: 'response', responseType: 'blob' });
+  }
+
   restartDay() {
     return this.http.post<{ archivedSessions: number }>(`${this.baseUrl}/restart-day`, {});
   }
@@ -39,5 +43,11 @@ export class SessionsApiService {
 
   resume(sessionId: string) {
     return this.http.post<CafeSession>(`${this.baseUrl}/${sessionId}/resume`, {});
+  }
+
+  fileName(response: HttpResponse<Blob>): string {
+    const header = response.headers.get('content-disposition') ?? '';
+    const match = /filename="([^"]+)"/i.exec(header);
+    return match?.[1] ?? 'facture.pdf';
   }
 }

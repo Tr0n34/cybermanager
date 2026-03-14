@@ -80,8 +80,11 @@ Afficher une vue operationnelle compacte de la journee avec detail client, etats
 - la liste utilise une pagination classique `Precedent` / `Suivant`
 - la colonne de detail a droite reste compacte et ne s'etire pas a la hauteur de la liste
 - un bouton `Detail` charge le detail dans la colonne de droite
+- le detail peut aussi etre ouvert par glisser-deposer d'un client depuis la liste vers le panneau de droite
 - le detail affiche au maximum les `10 derniers produits` et les `10 dernieres sessions` par defaut
 - un bouton `Historique complet` permet d'afficher tout l'historique du jour avec pagination independante pour les ventes et les sessions
+- les lignes de vente en dette apparaissent en rouge clair
+- la section sessions du detail affiche uniquement `Date demarrage` et `Date arret`
 - les etats vides et les erreurs de chargement sont visibles dans la page
 
 ## Criteres d'acceptation
