@@ -98,17 +98,19 @@ public class SalesApplicationService implements
     }
 
     public SaleView execute(CreateSubscriptionSaleCommand command) {
-        LOGGER.info("Creating subscription sale customerId={} offerId={} createDebt={}", command.customerId(), command.subscriptionOfferId(), command.createDebt());
+        LOGGER.info("Creating subscription sale customerId={} offerId={} quantity={} createDebt={}", command.customerId(), command.subscriptionOfferId(), command.quantity(), command.createDebt());
         var offer = subscriptionOfferRepository.findById(new SubscriptionOfferId(command.subscriptionOfferId()))
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SUBSCRIPTION_OFFER_NOT_FOUND", "Subscription offer not found"));
+        int quantity = Math.max(1, command.quantity());
         Customer customer = customerRepository.findById(new CustomerId(command.customerId()))
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
-        customerRepository.save(customer.addSubscriptionMinutes(offer.includedMinutes()));
-        var lines = List.of(new SaleLine(offer.name(), 1, offer.price(), offer.price()));
+        customerRepository.save(customer.addSubscriptionMinutes(offer.includedMinutes() * quantity));
+        var totalAmount = new Money(offer.price().amount().multiply(BigDecimal.valueOf(quantity)));
+        var lines = List.of(new SaleLine(offer.name(), quantity, offer.price(), totalAmount));
         validateSessionLink(command.customerId(), command.sessionId());
-        var sale = saleRepository.save(Sale.create(new CustomerId(command.customerId()), command.sessionId(), SaleType.SUBSCRIPTION, LocalDateTime.now(), lines, offer.price()));
-        createDebtIfRequested(command.customerId(), command.createDebt(), debtLabelForSale(sale), offer.price());
-        LOGGER.info("Subscription sale created saleId={} customerId={} includedMinutes={}", sale.id().value(), sale.customerId().value(), offer.includedMinutes());
+        var sale = saleRepository.save(Sale.create(new CustomerId(command.customerId()), command.sessionId(), SaleType.SUBSCRIPTION, LocalDateTime.now(), lines, totalAmount));
+        createDebtIfRequested(command.customerId(), command.createDebt(), debtLabelForSale(sale), totalAmount);
+        LOGGER.info("Subscription sale created saleId={} customerId={} includedMinutes={} quantity={}", sale.id().value(), sale.customerId().value(), offer.includedMinutes() * quantity, quantity);
         return toView(sale);
     }
 

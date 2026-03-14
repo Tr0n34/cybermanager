@@ -1,0 +1,211 @@
+<section class="page monitoring-page">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Vue operationnelle</p>
+      <h2>Dashboard du jour</h2>
+    </div>
+    <div class="hero-actions">
+      <p class="lede">Filtre les clients de la journee, navigue entre les pages et clique sur Detail pour ouvrir l'historique d'un client.</p>
+      <button type="button" class="ghost filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
+        <span class="filter-icon" aria-hidden="true"></span>
+        <span>{{ showFilters() ? 'Masquer' : 'Filtrer' }}</span>
+      </button>
+    </div>
+  </header>
+
+  <p class="error" *ngIf="error()">{{ error() }}</p>
+
+  <section class="panel stack">
+    <div class="section-head">
+      <div class="section-title-group">
+        <h3>Clients du jour</h3>
+        <button type="button" class="ghost filter-toggle inline-filter-toggle" (click)="showFilters.set(!showFilters())" [attr.aria-expanded]="showFilters()">
+          <span class="filter-icon" aria-hidden="true"></span>
+          <span>{{ showFilters() ? 'Masquer' : 'Filtrer' }}</span>
+        </button>
+      </div>
+      <div class="section-tools">
+        <span class="summary-chip">{{ filteredCustomers().length }} client(s)</span>
+        <span class="summary-chip">Encaisse {{ totalCollected() | number:'1.2-2' }} EUR</span>
+        <span class="summary-chip">Dette {{ totalDebtCreated() | number:'1.2-2' }} EUR</span>
+      </div>
+    </div>
+
+    <div class="filters-grid monitoring-filters collapsible" [class.is-collapsed]="!showFilters()">
+      <label class="field">
+        <span>Recherche client</span>
+        <input [ngModel]="customerFilter()" (ngModelChange)="updateCustomerFilter($event)" placeholder="Nom du client" />
+      </label>
+      <label class="field">
+        <span>Etat</span>
+        <select [ngModel]="stateFilter()" (ngModelChange)="updateStateFilter($event)">
+          <option value="ALL">Tous</option>
+          <option *ngFor="let state of stateOptions()" [value]="state">{{ state }}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Dette</span>
+        <select [ngModel]="debtFilter()" (ngModelChange)="updateDebtFilter($event)">
+          <option value="ALL">Tous</option>
+          <option value="YES">Avec dette</option>
+          <option value="NO">Sans dette</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Par page</span>
+        <select [ngModel]="pageSize()" (ngModelChange)="updatePageSize($event)">
+          <option *ngFor="let option of pageSizeOptions" [ngValue]="option">{{ option }}</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="monitoring-grid">
+      <section class="stack">
+        <div class="table-shell fixed-shell">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th class="center-cell">Type</th>
+                <th class="center-cell">Etat</th>
+                <th class="center-cell">Credit</th>
+                <th class="center-cell">Conso</th>
+                <th class="center-cell">Achats</th>
+                <th class="center-cell">Dette</th>
+                <th class="center-cell">Encaisse</th>
+                <th class="actions-head"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                *ngFor="let customer of pagedCustomers()"
+                [class.active-row]="detail()?.customerId === customer.customerId"
+                draggable="true"
+                (dragstart)="startCustomerDrag(customer.customerId); $event.dataTransfer?.setData('text/plain', customer.customerId)"
+                (dragend)="endCustomerDrag()"
+              >
+                <td class="client-cell">{{ customer.name }}</td>
+                <td class="center-cell">
+                  <span [class]="customerTypeChipClass(customer.type)">{{ customerTypeLabel(customer.type) }}</span>
+                </td>
+                <td class="center-cell">
+                  <span class="inline-state" [class.paid-chip]="customer.state === 'TERMINEE'" [class.active-chip]="customer.state !== 'TERMINEE'">
+                    {{ customer.state }}
+                  </span>
+                </td>
+                <td class="center-cell">{{ customer.remainingMinutes }} min</td>
+                <td class="center-cell">{{ customer.consumedMinutes }} min</td>
+                <td class="center-cell">{{ customer.purchasesTotal | number:'1.2-2' }} EUR</td>
+                <td class="center-cell">{{ customer.debtTotal | number:'1.2-2' }} EUR</td>
+                <td class="center-cell">{{ customer.collectedTotal | number:'1.2-2' }} EUR</td>
+                <td class="action-cell">
+                  <button type="button" class="ghost" (click)="loadDetail(customer.customerId)">
+                    {{ detail()?.customerId === customer.customerId ? 'Fermer' : 'Detail' }}
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="pagedCustomers().length === 0">
+                <td colspan="9" class="center-cell muted">Aucun client ne correspond aux filtres.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pager">
+          <button type="button" class="ghost" (click)="previousPage()" [disabled]="currentPage() <= 1">Precedent</button>
+          <span>Page {{ currentPage() }} / {{ totalPages() }}</span>
+          <button type="button" class="ghost" (click)="nextPage()" [disabled]="currentPage() >= totalPages()">Suivant</button>
+        </div>
+      </section>
+
+      <aside
+        class="panel side-panel detail-frame stack"
+        *ngIf="detail() as currentDetail; else emptyDetail"
+        (dragover)="allowDetailDrop($event)"
+        (drop)="dropCustomerInDetail($event)"
+      >
+        <div class="side-panel-header">
+          <div>
+            <h3>{{ currentDetail.name }}</h3>
+            <p class="meta">{{ currentDetail.customerId }}</p>
+          </div>
+          <button type="button" class="ghost" (click)="closeDetail()">Fermer</button>
+        </div>
+
+        <div class="detail-summary-card" *ngIf="selectedCustomerSummary() as summary">
+          <div class="detail-summary-head">
+            <h4>Informations client</h4>
+            <span [class]="customerTypeChipClass(summary.type)">{{ customerTypeLabel(summary.type) }}</span>
+          </div>
+          <div class="detail-summary-grid">
+            <p><strong>Client :</strong> {{ summary.name }}</p>
+            <p><strong>Etat :</strong> <span [class]="detailStateChipClass(summary.state)">{{ summary.state }}</span></p>
+            <p><strong>Credit :</strong> {{ summary.remainingMinutes }} min</p>
+            <p><strong>Consomme :</strong> {{ summary.consumedMinutes }} min</p>
+            <p><strong>Achats :</strong> {{ summary.purchasesTotal | number:'1.2-2' }} EUR</p>
+            <p><strong>Encaisse :</strong> {{ summary.collectedTotal | number:'1.2-2' }} EUR</p>
+            <p><strong>Dette :</strong> {{ summary.debtTotal | number:'1.2-2' }} EUR</p>
+          </div>
+        </div>
+
+        <div class="detail-cards">
+          <article class="purchase-item compact">
+            <strong>Total encaisse</strong>
+            <span class="entry-amount">{{ currentDetail.totalCollected | number:'1.2-2' }} EUR</span>
+          </article>
+          <article class="purchase-item compact">
+            <strong>Total dette creee</strong>
+            <span class="entry-amount">{{ currentDetail.totalDebtCreated | number:'1.2-2' }} EUR</span>
+          </article>
+        </div>
+
+        <div class="section-head">
+          <h4>Achats</h4>
+          <button type="button" class="ghost" *ngIf="canShowFullHistoryButton()" (click)="toggleFullHistory()">
+            {{ showFullHistory() ? 'Vue reduite' : 'Voir tout' }}
+          </button>
+        </div>
+        <div class="purchase-list" *ngIf="visibleSales().length > 0; else noSales">
+          <article class="purchase-item compact" *ngFor="let sale of visibleSales()">
+            <strong>{{ sale.quantity }} x {{ sale.label }}</strong>
+            <span class="entry-date">{{ sale.soldAt | date:'dd/MM/yyyy HH:mm' }}</span>
+            <span class="entry-amount">{{ sale.totalPrice | number:'1.2-2' }} EUR</span>
+          </article>
+        </div>
+        <ng-template #noSales><p class="muted">Aucun achat sur ce client.</p></ng-template>
+        <div class="pager" *ngIf="showFullHistory() && salesTotalPages() > 1">
+          <button type="button" class="ghost" (click)="previousSalesPage()" [disabled]="currentSalesPage() <= 1">Precedent</button>
+          <span>Achats {{ currentSalesPage() }} / {{ salesTotalPages() }}</span>
+          <button type="button" class="ghost" (click)="nextSalesPage()" [disabled]="currentSalesPage() >= salesTotalPages()">Suivant</button>
+        </div>
+
+        <div class="section-head">
+          <h4>Sessions</h4>
+        </div>
+        <div class="purchase-list" *ngIf="visibleSessions().length > 0; else noSessions">
+          <article class="purchase-item compact" *ngFor="let session of visibleSessions()">
+            <strong>{{ session.sessionLabel }}</strong>
+            <span class="entry-date">{{ session.startedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+            <span class="entry-amount" *ngIf="session.endedAt">{{ session.endedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </article>
+        </div>
+        <ng-template #noSessions><p class="muted">Aucune session sur ce client.</p></ng-template>
+        <div class="pager" *ngIf="showFullHistory() && sessionsTotalPages() > 1">
+          <button type="button" class="ghost" (click)="previousSessionsPage()" [disabled]="currentSessionsPage() <= 1">Precedent</button>
+          <span>Sessions {{ currentSessionsPage() }} / {{ sessionsTotalPages() }}</span>
+          <button type="button" class="ghost" (click)="nextSessionsPage()" [disabled]="currentSessionsPage() >= sessionsTotalPages()">Suivant</button>
+        </div>
+      </aside>
+
+      <ng-template #emptyDetail>
+        <aside
+          class="panel side-panel detail-frame placeholder drop-target"
+          (dragover)="allowDetailDrop($event)"
+          (drop)="dropCustomerInDetail($event)"
+        >
+          <p class="muted">Clique sur Detail ou glisse-depose un client ici pour afficher son historique.</p>
+        </aside>
+      </ng-template>
+    </div>
+  </section>
+</section>

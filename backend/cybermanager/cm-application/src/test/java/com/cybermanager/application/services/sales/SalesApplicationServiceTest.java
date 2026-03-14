@@ -2,6 +2,7 @@ package com.cybermanager.application.services.sales;
 
 import com.cybermanager.application.commands.sales.ConfigureConnectionPricingCommand;
 import com.cybermanager.application.commands.sales.CreateConnectionTimeSaleCommand;
+import com.cybermanager.application.commands.sales.CreateSubscriptionSaleCommand;
 import com.cybermanager.domain.model.customer.Customer;
 import com.cybermanager.domain.model.customer.CustomerId;
 import com.cybermanager.domain.model.customer.CustomerStatus;
@@ -154,5 +155,33 @@ class SalesApplicationServiceTest {
         verify(customerRepository).save(argThat(saved -> saved.remainingMinutes() == 0));
         verify(debtRepository).deleteById(debt.id());
         verify(saleRepository).deleteById(new SaleId(saleUuid));
+    }
+
+    @Test
+    void shouldCreateSubscriptionSaleWithQuantity() {
+        SaleRepository saleRepository = mock(SaleRepository.class);
+        ConnectionPricingRepository pricingRepository = mock(ConnectionPricingRepository.class);
+        ProductRepository productRepository = mock(ProductRepository.class);
+        SubscriptionOfferRepository offerRepository = mock(SubscriptionOfferRepository.class);
+        CustomerRepository customerRepository = mock(CustomerRepository.class);
+        DebtRepository debtRepository = mock(DebtRepository.class);
+        CafeSessionRepository sessionRepository = mock(CafeSessionRepository.class);
+        SalesApplicationService service = new SalesApplicationService(saleRepository, pricingRepository, productRepository, offerRepository, customerRepository, debtRepository, sessionRepository);
+
+        UUID customerUuid = UUID.randomUUID();
+        UUID offerUuid = UUID.randomUUID();
+        Customer customer = new Customer(new CustomerId(customerUuid), "Yanis", CustomerType.SUBSCRIBER, CustomerStatus.ACTIVE, 60);
+        SubscriptionOffer offer = new SubscriptionOffer(new SubscriptionOfferId(offerUuid), "Forfait 5h", Money.of("12.00"), 300, SubscriptionOfferStatus.ACTIVE);
+
+        when(offerRepository.findById(new SubscriptionOfferId(offerUuid))).thenReturn(java.util.Optional.of(offer));
+        when(customerRepository.findById(new CustomerId(customerUuid))).thenReturn(java.util.Optional.of(customer));
+        when(customerRepository.save(any(Customer.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.execute(new CreateSubscriptionSaleCommand("admin@cybermanager.local", Set.of("ADMIN"), customerUuid, null, offerUuid, 2, false));
+
+        assertEquals(new BigDecimal("24.00"), result.totalAmount());
+        assertEquals(2, result.lines().getFirst().quantity());
+        verify(customerRepository).save(argThat(saved -> saved.remainingMinutes() == 660));
     }
 }

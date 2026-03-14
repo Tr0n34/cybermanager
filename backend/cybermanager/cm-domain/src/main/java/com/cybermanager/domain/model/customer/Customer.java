@@ -47,5 +47,9 @@ public record Customer(
         return new Customer(id, name, CustomerType.SUBSCRIBER, status, nextMinutes);
     }
 
+    public Customer withRemainingMinutes(int nextRemainingMinutes) {
+        return new Customer(id, name, type, status, Math.max(0, nextRemainingMinutes));
+    }
+
 }
 

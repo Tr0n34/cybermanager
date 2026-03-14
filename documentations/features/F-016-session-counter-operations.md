@@ -38,7 +38,11 @@ Fournir un ecran `Sessions` compacte, orientee comptoir, qui centralise les acti
 - les dettes issues d'achats similaires peuvent etre regroupees sur une ligne compacte dans le detail des achats
 - les abonnements d'un meme client sont cumulables et augmentent le credit disponible
 - dans la modale de paiement, un abonnement ajoute pendant le reglement augmente d'abord le credit, reduit le cout du depassement eventuel, puis ajoute son propre prix au montant final a regler
+- dans la modale de paiement, le temps de depassement couvert par un abonnement ajoute n'est plus compte une seconde fois dans le montant connexion
+- si le depassement est entierement absorbe par les abonnements ajoutes, la connexion restante a payer tombe a zero
 - la colonne `A payer` d'une session doit suivre la meme regle que la modale de paiement pour les abonnements deja rattaches a la session
+- une session arretee mais non payee peut encore recevoir une vente produit ou une vente d'abonnement rattachee a la session
+- les catalogues de reference critiques utilises par les modales de session doivent etre relus a l'ouverture si le personnel peut les avoir modifies dans un autre ecran
 
 ## Backend
 
@@ -100,6 +104,11 @@ Fournir un ecran `Sessions` compacte, orientee comptoir, qui centralise les acti
 - la vente d'un abonnement depuis une session se fait dans une modale
 - l'arret d'une session ouvre une modale de validation du paiement avec detail `Connexion`, `Achats`, `Total du jour`, `Dettes ouvertes`
 - la modale de paiement peut ajouter un ou plusieurs abonnements et recalculer immediatement le montant `A payer`
+- la modale de paiement affiche explicitement le detail du calcul final et le montant conseille
+- la modale de paiement recharge les offres actives a son ouverture
+- la modale de vente produit recharge le catalogue produit actif a son ouverture
+- la modale de vente d'abonnement recharge les offres actives a son ouverture
+- apres une vente rattachee a la session, le detail du client et le montant visible de la session doivent etre relus
 
 ## Criteres d'acceptation
 
@@ -108,3 +117,5 @@ Fournir un ecran `Sessions` compacte, orientee comptoir, qui centralise les acti
 - l'etat d'une session passe visuellement de `En cours` a `Pause` puis `Paye` ou `Terminee` selon le cas
 - la modale d'arret affiche distinctement le paiement du jour et les dettes deja ouvertes
 - les dettes et achats du jour restent lisibles, compacts et coherents apres ventes, pauses et arrets
+- une vente produit ou abonnement sur session arretee peut etre enregistree sans quitter l'ecran
+- une vente enregistree sur session arretee apparait ensuite dans le detail de la session

@@ -4,6 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "serve": "ng serve",
     "build": "ng build",
     "preview": "serve dist/cybermanager-frontend/browser -s",
     "watch": "ng build --watch --configuration development",

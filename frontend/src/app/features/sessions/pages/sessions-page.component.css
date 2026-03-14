@@ -32,19 +32,11 @@
 .table td.action-cell button{margin-left:auto}
 .indicator-head{width:2.4rem}
 .indicator-cell{padding-inline:.2rem}
-.session-indicator{display:inline-flex;align-items:center;justify-content:center;width:1.15rem;height:1.15rem;border-radius:999px;font-size:0;font-weight:900;line-height:1;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08)}
-.session-indicator::before{font-size:.64rem;line-height:1;color:#fff}
-.debt-session-indicator{background:#ef4444}
-.debt-session-indicator::before{content:'D'}
-.ok-session-indicator{background:#22c55e}
-.ok-session-indicator::before{content:'U'}
-.awaiting-payment-row{background:#eff6ff}
-.pending-chip{background:#dbeafe;color:#1d4ed8}
-.pending-amount{font-weight:800;color:#1d4ed8}
-.paused-chip{background:#fef3c7;color:#92400e}
 .detail-row td{background:#fffaf4;padding-top:.22rem;padding-bottom:.32rem}
 .detail-card{padding:.16rem 0}
 .detail-grid{grid-template-columns:1.1fr .9fr}
+.payment-breakdown{display:grid;gap:.28rem;padding:.7rem .85rem;border:1px solid #dbeafe;border-radius:.9rem;background:#f8fbff}
+.payment-breakdown p{margin:0}
 .purchase-item.debt-entry{background:#fff1f2;border-color:#fecdd3}
 .purchase-item.debt-entry strong,.purchase-item.debt-entry span:last-child{color:#b91c1c}
 .entry-actions-cell{display:inline-flex;justify-content:flex-end;align-items:center;gap:.28rem;min-width:3rem}

@@ -32,6 +32,17 @@ type SessionDetailEntry = {
   openDebt: boolean;
 };
 
+type PaymentOfferSelection = {
+  offerId: string;
+  quantity: number;
+};
+
+type PaymentSelectedOffer = SubscriptionOffer & {
+  quantity: number;
+  totalMinutes: number;
+  totalPrice: number;
+};
+
 @Component({
   selector: 'app-sessions-page',
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
@@ -271,14 +282,23 @@ type SessionDetailEntry = {
             <p class="muted">Le compteur est arrete. Encaisse le montant regle maintenant et finalise la session.</p>
             <div class="confirm-summary">
               <p class="confirm-total"><strong>A payer :</strong> {{ paymentDialogTotalAmount(session) | number:'1.2-2' }} EUR</p>
+              <div class="payment-breakdown">
+                <p><strong>Credit client disponible :</strong> {{ paymentDialogBaseRemainingMinutes(session) }} min</p>
+                <p><strong>Temps depasse avant ajout :</strong> {{ paymentDialogRawOvertimeMinutes(session) }} min</p>
+                <p *ngIf="paymentSelectedOffers().length > 0"><strong>Minutes ajoutees par abonnement :</strong> {{ paymentDialogSelectedOfferMinutes() }} min</p>
+                <p><strong>Temps depasse apres ajout :</strong> {{ paymentDialogOvertimeMinutes(session) }} min</p>
+                <p><strong>Connexion :</strong> {{ paymentDialogConnectionAmount(session) | number:'1.2-2' }} EUR</p>
+                <p><strong>Achats session :</strong> {{ paymentDialogPurchaseAmount(session) | number:'1.2-2' }} EUR</p>
+                <p *ngIf="paymentSelectedOffers().length > 0"><strong>Abonnements a encaisser :</strong> {{ paymentDialogSubscriptionImmediateAmount() | number:'1.2-2' }} EUR</p>
+              </div>
               <div *ngIf="paymentSelectedOffers().length > 0">
                 <p><strong>Nouveaux abonnements ajoutes :</strong></p>
                 <div class="purchase-list">
                   <article class="purchase-item compact session-entry" *ngFor="let offer of paymentSelectedOffers(); let index = index">
-                    <strong>{{ offer.name }}</strong>
-                    <span class="entry-date">{{ offer.includedMinutes }} min</span>
-                    <span class="entry-amount">{{ offer.price | number:'1.2-2' }} EUR</span>
-                    <button type="button" class="ghost compact-remove" (click)="removePaymentOffer(index)">Retirer</button>
+                    <strong>{{ offer.quantity }} x {{ offer.name }}</strong>
+                    <span class="entry-date">{{ offer.totalMinutes }} min</span>
+                    <span class="entry-amount">{{ offer.totalPrice | number:'1.2-2' }} EUR</span>
+                    <button type="button" class="ghost compact-remove icon-remove" (click)="removePaymentOffer(index)" aria-label="Retirer l abonnement ajoute" title="Retirer l abonnement ajoute">-</button>
                   </article>
                 </div>
                 <p class="muted" *ngIf="paymentResolutionForm.controls.createSubscriptionDebt.value">Ces nouveaux abonnements seront mis en dette.</p>
@@ -290,7 +310,7 @@ type SessionDetailEntry = {
                 <input type="number" min="0" step="0.01" formControlName="amountPaid" />
               </label>
               <p class="muted">Montant conseille : {{ paymentDialogTotalAmount(session) | number:'1.2-2' }} EUR</p>
-              <ng-container *ngIf="session.customerType === 'SUBSCRIBER' && paymentDialogRawOvertimeMinutes(session) > 0">
+              <ng-container *ngIf="offers().length > 0">
                 <label class="field">
                   <span>Ajouter un abonnement</span>
                   <select formControlName="offerToAddId">
@@ -298,14 +318,21 @@ type SessionDetailEntry = {
                     <option *ngFor="let offer of offers()" [value]="offer.offerId">{{ offer.name }} - {{ offer.includedMinutes }} min - {{ offer.price | number:'1.2-2' }} EUR</option>
                   </select>
                 </label>
+                <label class="field">
+                  <span>Quantite</span>
+                  <input type="number" min="1" formControlName="offerToAddQuantity" />
+                </label>
                 <div class="actions inline-actions">
-                  <button type="button" class="ghost" (click)="addPaymentOffer()" [disabled]="!paymentResolutionForm.controls.offerToAddId.value">Ajouter cet abonnement</button>
+                  <button type="button" class="ghost" (click)="addPaymentOffer()" [disabled]="!paymentResolutionForm.controls.offerToAddId.value || paymentResolutionForm.controls.offerToAddQuantity.invalid">Ajouter cet abonnement</button>
                 </div>
-                <p class="muted">Ajoute un ou plusieurs abonnements si tu veux reduire le temps en trop avant le paiement.</p>
+                <p class="muted">Ajoute un ou plusieurs abonnements pendant le paiement pour couvrir le depassement et recalculer le total final.</p>
                 <label class="checkbox" *ngIf="paymentSelectedOffers().length > 0">
                   <input type="checkbox" formControlName="createSubscriptionDebt" />
                   <span>Mettre les nouveaux abonnements en dette</span>
                 </label>
+                <p class="muted" *ngIf="paymentDialogRawOvertimeMinutes(session) === 0 && paymentSelectedOffers().length === 0">
+                  Aucun depassement detecte, mais tu peux quand meme vendre un abonnement ici.
+                </p>
                 <p class="muted" *ngIf="paymentSelectedOffers().length > 0 && paymentDialogOvertimeMinutes(session) === 0">
                   Les nouveaux abonnements couvrent completement le depassement.
                 </p>
@@ -360,6 +387,10 @@ type SessionDetailEntry = {
                   <option *ngFor="let offer of offers()" [value]="offer.offerId">{{ offer.name }} - {{ offer.includedMinutes }} min</option>
                 </select>
               </label>
+              <label class="field">
+                <span>Quantite</span>
+                <input type="number" min="1" formControlName="quantity" />
+              </label>
               <label class="checkbox">
                 <input type="checkbox" formControlName="createDebt" />
                 <span>Creer une dette au lieu d'encaisser</span>
@@ -393,7 +424,7 @@ export class SessionsPageComponent {
   readonly saleTargetSession = signal<CafeSession | null>(null);
   readonly saleModalType = signal<'product' | 'subscription' | null>(null);
   readonly payTargetSession = signal<CafeSession | null>(null);
-  readonly paymentOfferIds = signal<string[]>([]);
+  readonly paymentOfferSelections = signal<PaymentOfferSelection[]>([]);
   readonly expandedSessionId = signal<string | null>(null);
   readonly expandedDaySessionId = signal<string | null>(null);
   readonly sessionDetails = signal<Record<string, CustomerDetails>>({});
@@ -416,8 +447,17 @@ export class SessionsPageComponent {
   readonly newSubscriberForm = this.fb.nonNullable.group({ name: [''], subscriptionOfferId: [''] });
   readonly convertForm = this.fb.nonNullable.group({ subscriptionOfferId: [''], deductCurrentSession: [false] });
   readonly productSaleForm = this.fb.nonNullable.group({ productId: ['', Validators.required], quantity: [1, [Validators.required, Validators.min(1)]], createDebt: [false] });
-  readonly subscriptionSaleForm = this.fb.nonNullable.group({ subscriptionOfferId: ['', Validators.required], createDebt: [false] });
-  readonly paymentResolutionForm = this.fb.nonNullable.group({ offerToAddId: [''], createSubscriptionDebt: [false], amountPaid: [0, [Validators.required, Validators.min(0)]] });
+  readonly subscriptionSaleForm = this.fb.nonNullable.group({
+    subscriptionOfferId: ['', Validators.required],
+    quantity: [1, [Validators.required, Validators.min(1)]],
+    createDebt: [false],
+  });
+  readonly paymentResolutionForm = this.fb.nonNullable.group({
+    offerToAddId: [''],
+    offerToAddQuantity: [1, [Validators.required, Validators.min(1)]],
+    createSubscriptionDebt: [false],
+    amountPaid: [0, [Validators.required, Validators.min(0)]],
+  });
   readonly currentFilters = this.fb.nonNullable.group({ term: [''], startedAfter: [''] });
   readonly dayFilters = this.fb.nonNullable.group({ term: [''], startedAfter: [''] });
 
@@ -435,15 +475,7 @@ export class SessionsPageComponent {
       next: (pricing) => this.pricingTiers.set(pricing.tiers),
       error: () => this.pricingTiers.set([]),
     });
-    this.productsApi.search('', 'ACTIVE', '').subscribe({
-      next: (value) => {
-        this.products.set(value);
-        this.logger.debug('sessions-ui', 'Products catalog loaded for session flows', { productCount: value.length });
-      },
-      error: (error: HttpErrorResponse) => {
-        this.logger.warn('sessions-ui', 'Unable to preload products catalog', error);
-      },
-    });
+    this.loadProducts();
 
     this.subscriberSearchForm.controls.term.valueChanges.pipe(
       map((value) => value.trim()),
@@ -495,6 +527,13 @@ export class SessionsPageComponent {
       this.logger.debug('sessions-ui', 'Day sessions date filter updated', { startedAfter: value || null, termLength: this.dayTerm().length });
     });
 
+    this.paymentResolutionForm.controls.createSubscriptionDebt.valueChanges.pipe(
+      distinctUntilChanged(),
+      takeUntilDestroyed(),
+    ).subscribe(() => {
+      this.syncPaymentAmountToRecommended();
+    });
+
     interval(1000).pipe(takeUntilDestroyed()).subscribe(() => {
       this.now.set(Date.now());
     });
@@ -513,6 +552,19 @@ export class SessionsPageComponent {
       error: (error: HttpErrorResponse) => {
         this.logger.warn('sessions-ui', 'Subscription offers loading failed', error);
         this.error.set(error.error?.message ?? 'Chargement des offres impossible');
+      },
+    });
+  }
+
+  loadProducts(): void {
+    this.productsApi.search('', 'ACTIVE', '').subscribe({
+      next: (value) => {
+        this.products.set(value);
+        this.logger.debug('sessions-ui', 'Products catalog loaded for session flows', { productCount: value.length });
+      },
+      error: (error: HttpErrorResponse) => {
+        this.logger.warn('sessions-ui', 'Unable to preload products catalog', error);
+        this.error.set(this.resolveHttpError(error, 'Chargement des produits impossible'));
       },
     });
   }
@@ -637,19 +689,20 @@ export class SessionsPageComponent {
   }
 
   openPaymentDialog(session: CafeSession): void {
-    const suggestedAmount = Number(Number(session.totalAmountDue ?? 0).toFixed(2));
     this.payTargetSession.set(session);
-    this.paymentOfferIds.set([]);
-    this.paymentResolutionForm.reset({ offerToAddId: '', createSubscriptionDebt: false, amountPaid: suggestedAmount });
+    this.paymentOfferSelections.set([]);
+    this.paymentResolutionForm.reset({ offerToAddId: '', offerToAddQuantity: 1, createSubscriptionDebt: false, amountPaid: 0 });
+    this.loadOffers();
     this.loadCustomerDetails(session.customerId);
+    this.syncPaymentAmountToRecommended();
     this.error.set('');
     this.notice.set('');
   }
 
   closePaymentDialog(): void {
     this.payTargetSession.set(null);
-    this.paymentOfferIds.set([]);
-    this.paymentResolutionForm.reset({ offerToAddId: '', createSubscriptionDebt: false, amountPaid: 0 });
+    this.paymentOfferSelections.set([]);
+    this.paymentResolutionForm.reset({ offerToAddId: '', offerToAddQuantity: 1, createSubscriptionDebt: false, amountPaid: 0 });
   }
 
   stopSession(session: CafeSession): void {
@@ -686,14 +739,14 @@ export class SessionsPageComponent {
 
     this.api.pay(session.sessionId, {
       amountPaid,
-      subscriptionOfferIds: selectedOffers.map((offer) => offer.offerId),
+      subscriptionOfferIds: selectedOffers.flatMap((offer) => Array.from({ length: offer.quantity }, () => offer.offerId)),
       createSubscriptionDebt,
     }).subscribe({
       next: () => {
         const connection = this.paymentDialogConnectionAmount(session);
         const purchases = this.paymentDialogPurchaseAmount(session);
         const subscriptionPaid = !createSubscriptionDebt
-          ? selectedOffers.reduce((total, offer) => total + Number(offer.price ?? 0), 0)
+          ? selectedOffers.reduce((total, offer) => total + offer.totalPrice, 0)
           : 0;
         const dayTotal = connection + purchases + subscriptionPaid;
         const subscriptionNotice = createSubscriptionDebt && selectedOffers.length > 0
@@ -729,6 +782,7 @@ export class SessionsPageComponent {
     this.saleTargetSession.set(session);
     this.saleModalType.set('product');
     this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
+    this.loadProducts();
     this.error.set('');
     this.notice.set('');
   }
@@ -736,7 +790,8 @@ export class SessionsPageComponent {
   openSubscriptionSaleModal(session: CafeSession): void {
     this.saleTargetSession.set(session);
     this.saleModalType.set('subscription');
-    this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
+    this.subscriptionSaleForm.reset({ subscriptionOfferId: '', quantity: 1, createDebt: false });
+    this.loadOffers();
     this.error.set('');
     this.notice.set('');
   }
@@ -745,7 +800,7 @@ export class SessionsPageComponent {
     this.saleTargetSession.set(null);
     this.saleModalType.set(null);
     this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
-    this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
+    this.subscriptionSaleForm.reset({ subscriptionOfferId: '', quantity: 1, createDebt: false });
   }
 
   sellProductForSession(): void {
@@ -757,6 +812,8 @@ export class SessionsPageComponent {
     const { productId, quantity, createDebt } = this.productSaleForm.getRawValue();
     this.salesApi.productSale({ customerId: session.customerId, sessionId: session.sessionId, lines: [{ productId, quantity }], createDebt }).subscribe({
       next: () => {
+        this.notice.set(createDebt ? 'Vente enregistree en dette.' : 'Vente enregistree.');
+        this.error.set('');
         this.refreshCustomerDetails(session.customerId);
         this.closeSaleModal();
         this.reload();
@@ -771,9 +828,11 @@ export class SessionsPageComponent {
       this.subscriptionSaleForm.markAllAsTouched();
       return;
     }
-    const { subscriptionOfferId, createDebt } = this.subscriptionSaleForm.getRawValue();
-    this.salesApi.subscriptionSale({ customerId: session.customerId, sessionId: session.sessionId, subscriptionOfferId, createDebt }).subscribe({
+    const { subscriptionOfferId, quantity, createDebt } = this.subscriptionSaleForm.getRawValue();
+    this.salesApi.subscriptionSale({ customerId: session.customerId, sessionId: session.sessionId, subscriptionOfferId, quantity, createDebt }).subscribe({
       next: () => {
+        this.notice.set(createDebt ? 'Abonnement enregistre en dette.' : 'Abonnement enregistre.');
+        this.error.set('');
         this.refreshCustomerDetails(session.customerId);
         this.closeSaleModal();
         this.reload();
@@ -976,49 +1035,70 @@ export class SessionsPageComponent {
 
   addPaymentOffer(): void {
     const offerId = this.paymentResolutionForm.controls.offerToAddId.value;
+    const quantity = Number(this.paymentResolutionForm.controls.offerToAddQuantity.value ?? 1);
     if (!offerId) {
       this.error.set('Choisis un abonnement a ajouter.');
       return;
     }
-    this.paymentOfferIds.update((offerIds) => [...offerIds, offerId]);
-    this.paymentResolutionForm.patchValue({ offerToAddId: '' });
+    if (!Number.isFinite(quantity) || quantity < 1) {
+      this.error.set('La quantite d abonnement doit etre superieure a zero.');
+      return;
+    }
+    this.paymentOfferSelections.update((offerSelections) => [...offerSelections, { offerId, quantity }]);
+    this.paymentResolutionForm.patchValue({ offerToAddId: '', offerToAddQuantity: 1 });
+    this.syncPaymentAmountToRecommended();
     this.error.set('');
   }
 
   removePaymentOffer(index: number): void {
-    this.paymentOfferIds.update((offerIds) => offerIds.filter((_, currentIndex) => currentIndex !== index));
+    this.paymentOfferSelections.update((offerSelections) => offerSelections.filter((_, currentIndex) => currentIndex !== index));
+    this.syncPaymentAmountToRecommended();
   }
 
   paymentDialogPurchaseAmount(session: CafeSession): number {
     return Math.max(0, Number(session.totalAmountDue ?? 0) - this.paymentDialogBaseConnectionAmount(session));
   }
 
-  paymentSelectedOffers(): SubscriptionOffer[] {
-    return this.paymentOfferIds()
-      .map((offerId) => this.offers().find((offer) => offer.offerId === offerId) ?? null)
-      .filter((offer): offer is SubscriptionOffer => offer != null);
+  paymentDialogBaseRemainingMinutes(session: CafeSession): number {
+    return session.customerType === 'SUBSCRIBER' ? Number(session.remainingMinutes ?? 0) : 0;
+  }
+
+  paymentDialogSelectedOfferMinutes(): number {
+    return this.paymentSelectedOffers().reduce((total, offer) => total + offer.totalMinutes, 0);
+  }
+
+  paymentSelectedOffers(): PaymentSelectedOffer[] {
+    return this.paymentOfferSelections()
+      .map((selection) => {
+        const offer = this.offers().find((item) => item.offerId === selection.offerId);
+        if (!offer) {
+          return null;
+        }
+        const quantity = Math.max(1, Number(selection.quantity ?? 1));
+        return {
+          ...offer,
+          quantity,
+          totalMinutes: offer.includedMinutes * quantity,
+          totalPrice: Number(offer.price ?? 0) * quantity,
+        };
+      })
+      .filter((offer): offer is PaymentSelectedOffer => offer != null);
   }
 
   paymentDialogRawOvertimeMinutes(session: CafeSession): number {
-    if (session.customerType !== 'SUBSCRIBER') {
-      return 0;
-    }
-    return Math.max(0, Number(session.consumedMinutes ?? 0) - Number(session.remainingMinutes ?? 0));
+    return Math.max(0, Number(session.consumedMinutes ?? 0) - this.paymentDialogBaseRemainingMinutes(session));
   }
 
   paymentDialogOvertimeMinutes(session: CafeSession): number {
-    if (session.customerType !== 'SUBSCRIBER') {
-      return 0;
-    }
-    const selectedOfferMinutes = this.paymentSelectedOffers().reduce((total, offer) => total + offer.includedMinutes, 0);
-    return Math.max(0, Number(session.consumedMinutes ?? 0) - (Number(session.remainingMinutes ?? 0) + selectedOfferMinutes));
+    const selectedOfferMinutes = this.paymentDialogSelectedOfferMinutes();
+    return Math.max(0, Number(session.consumedMinutes ?? 0) - (this.paymentDialogBaseRemainingMinutes(session) + selectedOfferMinutes));
   }
 
   paymentDialogConnectionAmount(session: CafeSession): number {
-    if (session.customerType !== 'SUBSCRIBER') {
+    if (session.customerType !== 'SUBSCRIBER' && this.paymentSelectedOffers().length === 0) {
       return this.paymentDialogBaseConnectionAmount(session);
     }
-    return this.calculateConnectionPrice(this.paymentDialogOvertimeMinutes(session));
+    return Math.min(this.paymentDialogBaseConnectionAmount(session), this.calculateConnectionPrice(this.paymentDialogOvertimeMinutes(session)));
   }
 
   paymentDialogSubscriptionImmediateAmount(): number {
@@ -1026,7 +1106,7 @@ export class SessionsPageComponent {
     if (selectedOffers.length === 0 || this.paymentResolutionForm.controls.createSubscriptionDebt.value) {
       return 0;
     }
-    return selectedOffers.reduce((total, offer) => total + Number(offer.price ?? 0), 0);
+    return selectedOffers.reduce((total, offer) => total + offer.totalPrice, 0);
   }
 
   paymentDialogTotalAmount(session: CafeSession): number {
@@ -1083,7 +1163,12 @@ export class SessionsPageComponent {
   }
 
   canDeleteSubscriptionEntry(session: CafeSession, entry: SessionDetailEntry): boolean {
-    return !!session.endedAt && !session.paid && entry.saleIds.length === 1 && !!entry.debtLabel && entry.debtLabel.startsWith('Vente abonnement du ');
+    if (!session.endedAt || session.paid || entry.saleIds.length !== 1) {
+      return false;
+    }
+    return (entry.debtLabel?.startsWith('Vente abonnement du ') ?? false)
+      || (entry.rawLabel?.startsWith('Vente abonnement du ') ?? false)
+      || entry.label === 'Abonnement';
   }
 
   deleteSubscriptionEntry(session: CafeSession, entry: SessionDetailEntry): void {
@@ -1313,5 +1398,14 @@ export class SessionsPageComponent {
       return 'Endpoint introuvable. Redemarre probablement le backend.';
     }
     return fallback;
+  }
+
+  private syncPaymentAmountToRecommended(): void {
+    const session = this.payTargetSession();
+    if (!session) {
+      return;
+    }
+    const recommendedAmount = Number(this.paymentDialogTotalAmount(session).toFixed(2));
+    this.paymentResolutionForm.patchValue({ amountPaid: recommendedAmount }, { emitEvent: false });
   }
 }

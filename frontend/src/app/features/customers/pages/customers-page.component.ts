@@ -39,6 +39,7 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
       </header>
 
       <p class="error" *ngIf="error()">{{ error() }}</p>
+      <p class="muted" *ngIf="notice()">{{ notice() }}</p>
 
       <div class="filters-grid collapsible" [class.is-collapsed]="!showFilters()" [formGroup]="filters">
         <label class="field">
@@ -188,6 +189,10 @@ import { SubscriptionOffersApiService } from '../../subscriptions/services/subsc
                 <option *ngFor="let offer of offers()" [value]="offer.offerId">{{ offer.name }} - {{ offer.includedMinutes }} min</option>
               </select>
             </label>
+            <label class="field">
+              <span>Quantite</span>
+              <input type="number" min="1" formControlName="quantity" />
+            </label>
             <label class="checkbox">
               <input type="checkbox" formControlName="createDebt" />
               <span>Creer une dette au lieu d'encaisser</span>
@@ -310,6 +315,7 @@ export class CustomersPageComponent {
   readonly showFilters = signal(false);
   readonly page = signal(1);
   readonly error = signal('');
+  readonly notice = signal('');
 
   readonly filters = this.fb.nonNullable.group({ term: [''], pageSize: [10] });
   readonly filterState = signal(this.filters.getRawValue());
@@ -321,6 +327,7 @@ export class CustomersPageComponent {
   readonly editForm = this.fb.nonNullable.group({ name: ['', Validators.required] });
   readonly subscriptionSaleForm = this.fb.nonNullable.group({
     subscriptionOfferId: ['', Validators.required],
+    quantity: [1, [Validators.required, Validators.min(1)]],
     createDebt: [false],
   });
   readonly productSaleForm = this.fb.nonNullable.group({
@@ -394,6 +401,7 @@ export class CustomersPageComponent {
     this.panelMode.set('create');
     this.selected.set(null);
     this.createForm.reset({ name: '', type: 'WALK_IN', subscriptionOfferId: '' });
+    this.loadOffers();
     this.error.set('');
     this.isPanelOpen.set(true);
   }
@@ -408,12 +416,16 @@ export class CustomersPageComponent {
 
   openActionModal(mode: 'subscription' | 'product'): void {
     this.actionModal.set(mode);
+    if (mode === 'subscription') {
+      this.loadOffers();
+    }
     this.error.set('');
+    this.notice.set('');
   }
 
   closeActionModal(): void {
     this.actionModal.set(null);
-    this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
+    this.subscriptionSaleForm.reset({ subscriptionOfferId: '', quantity: 1, createDebt: false });
     this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
   }
 
@@ -427,6 +439,8 @@ export class CustomersPageComponent {
 
   createCustomer(): void {
     const payload = this.createForm.getRawValue();
+    this.error.set('');
+    this.notice.set('');
     if (!payload.name.trim()) {
       this.error.set('Le nom du client est requis');
       return;
@@ -441,10 +455,11 @@ export class CustomersPageComponent {
       subscriptionOfferId: payload.type === 'SUBSCRIBER' ? payload.subscriptionOfferId : null,
     }).subscribe({
       next: () => {
+        this.notice.set('Client enregistre.');
         this.closePanel();
         this.load();
       },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Creation impossible'),
+      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Creation impossible')),
     });
   }
 
@@ -454,23 +469,26 @@ export class CustomersPageComponent {
         this.selected.set(customer);
         this.panelMode.set('edit');
         this.editForm.patchValue({ name: customer.name });
-        this.subscriptionSaleForm.reset({ subscriptionOfferId: '', createDebt: false });
+        this.subscriptionSaleForm.reset({ subscriptionOfferId: '', quantity: 1, createDebt: false });
         this.productSaleForm.reset({ productId: '', quantity: 1, createDebt: false });
         this.error.set('');
+        this.notice.set('');
         this.isPanelOpen.set(true);
       },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Chargement de la fiche impossible'),
+      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Chargement de la fiche impossible')),
     });
   }
 
   save(customerId: string): void {
     const payload = this.editForm.getRawValue();
+    this.error.set('');
     this.api.update(customerId, payload).subscribe({
       next: () => {
+        this.notice.set('Client mis a jour.');
         this.open(customerId);
         this.load();
       },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Sauvegarde impossible'),
+      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Sauvegarde impossible')),
     });
   }
 
@@ -479,18 +497,21 @@ export class CustomersPageComponent {
       this.subscriptionSaleForm.markAllAsTouched();
       return;
     }
+    this.error.set('');
     const payload = this.subscriptionSaleForm.getRawValue();
     this.salesApi.subscriptionSale({
       customerId,
       subscriptionOfferId: payload.subscriptionOfferId,
+      quantity: payload.quantity,
       createDebt: payload.createDebt,
     }).subscribe({
       next: () => {
+        this.notice.set(payload.createDebt ? 'Abonnement ajoute en dette.' : 'Abonnement ajoute.');
         this.closeActionModal();
         this.open(customerId);
         this.load();
       },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Vente d abonnement impossible'),
+      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Vente d abonnement impossible')),
     });
   }
 
@@ -499,6 +520,7 @@ export class CustomersPageComponent {
       this.productSaleForm.markAllAsTouched();
       return;
     }
+    this.error.set('');
     const payload = this.productSaleForm.getRawValue();
     this.salesApi.productSale({
       customerId,
@@ -506,11 +528,12 @@ export class CustomersPageComponent {
       createDebt: payload.createDebt,
     }).subscribe({
       next: () => {
+        this.notice.set(payload.createDebt ? 'Produit ajoute en dette.' : 'Produit enregistre.');
         this.closeActionModal();
         this.open(customerId);
         this.load();
       },
-      error: (error: HttpErrorResponse) => this.error.set(error.error?.message ?? 'Vente produit impossible'),
+      error: (error: HttpErrorResponse) => this.error.set(this.resolveHttpError(error, 'Vente produit impossible')),
     });
   }
 
@@ -585,5 +608,27 @@ export class CustomersPageComponent {
       return 'Connexion';
     }
     return 'Dette';
+  }
+
+  private resolveHttpError(error: HttpErrorResponse, fallback: string): string {
+    if (typeof error.error === 'string' && error.error.trim()) {
+      return error.error;
+    }
+    if (error.error?.message) {
+      return error.error.message;
+    }
+    if (error.status === 0) {
+      return 'Serveur inaccessible ou non redemarre.';
+    }
+    if (error.status === 401) {
+      return 'Session expiree. Reconnecte-toi.';
+    }
+    if (error.status === 403) {
+      return 'Action reservee a un administrateur.';
+    }
+    if (error.status === 404) {
+      return 'Endpoint introuvable. Redemarre probablement le backend.';
+    }
+    return fallback;
   }
 }

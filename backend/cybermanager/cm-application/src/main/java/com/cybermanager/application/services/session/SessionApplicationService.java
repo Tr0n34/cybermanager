@@ -188,7 +188,8 @@ public class SessionApplicationService implements
         var customer = customerRepository.findById(session.customerId())
                 .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "CUSTOMER_NOT_FOUND", "Customer not found"));
 
-        customer = applyPaymentSubscriptionOffers(session, customer, command.subscriptionOfferIds(), command.createSubscriptionDebt());
+        var paymentSubscriptions = applyPaymentSubscriptionOffers(session, customer, command.subscriptionOfferIds(), command.createSubscriptionDebt());
+        customer = paymentSubscriptions.customer();
 
         BigDecimal paidAmount = command.amountPaid() == null ? BigDecimal.ZERO : command.amountPaid().max(BigDecimal.ZERO);
         BigDecimal expectedAmount = computeFinancialSnapshot(session, customer).totalAmountDue().amount();
@@ -206,6 +207,10 @@ public class SessionApplicationService implements
         }
 
         var paidSession = sessionRepository.save(session.stop(session.endedAt(), computeFinancialSnapshot(session, customer).connectionAmount(), true));
+        if (customer.type() == CustomerType.SUBSCRIBER) {
+            customer = customer.withRemainingMinutes(computeDisplayRemainingMinutes(session, customer, paymentSubscriptions.addedIncludedMinutes()));
+            customerRepository.save(customer);
+        }
         LOGGER.info("Session marked as paid sessionId={} customerId={} expectedAmount={} paidAmount={}", paidSession.id().value(), customer.id().value(), expectedAmount, paidAmount);
         return toView(paidSession, customer);
     }
@@ -294,19 +299,21 @@ public class SessionApplicationService implements
                 : "Session du " + DateTimeLabelFormatter.format(startedAt);
     }
 
-    private Customer applyPaymentSubscriptionOffers(CafeSession session, Customer customer, List<java.util.UUID> subscriptionOfferIds, boolean createSubscriptionDebt) {
+    private PaymentSubscriptionApplicationResult applyPaymentSubscriptionOffers(CafeSession session, Customer customer, List<java.util.UUID> subscriptionOfferIds, boolean createSubscriptionDebt) {
         if (subscriptionOfferIds == null || subscriptionOfferIds.isEmpty()) {
-            return customer;
+            return new PaymentSubscriptionApplicationResult(customer, 0);
         }
         if (subscriptionOfferRepository == null) {
             throw new BusinessException(BusinessErrorType.VALIDATION, "SUBSCRIPTION_OFFERS_UNAVAILABLE", "Subscription offers are unavailable");
         }
 
         Customer updatedCustomer = customer;
+        int addedIncludedMinutes = 0;
         for (var subscriptionOfferId : subscriptionOfferIds) {
             var offer = subscriptionOfferRepository.findById(new SubscriptionOfferId(subscriptionOfferId))
                     .orElseThrow(() -> new BusinessException(BusinessErrorType.NOT_FOUND, "SUBSCRIPTION_OFFER_NOT_FOUND", "Subscription offer not found"));
             updatedCustomer = customerRepository.save(updatedCustomer.addSubscriptionMinutes(offer.includedMinutes()));
+            addedIncludedMinutes += offer.includedMinutes();
             var offerSale = saleRepository.save(Sale.create(
                     updatedCustomer.id(),
                     session.id().value(),
@@ -324,7 +331,7 @@ public class SessionApplicationService implements
                 ));
             }
         }
-        return updatedCustomer;
+        return new PaymentSubscriptionApplicationResult(updatedCustomer, addedIncludedMinutes);
     }
 
     private void createDebtsForUnpaidSales(CustomerId customerId, LocalDate day) {
@@ -402,6 +409,13 @@ public class SessionApplicationService implements
     }
 
     private int computeDisplayRemainingMinutes(CafeSession session, Customer customer) {
+        return computeDisplayRemainingMinutes(session, customer, 0);
+    }
+
+    private int computeDisplayRemainingMinutes(CafeSession session, Customer customer, int extraCompensatedMinutes) {
+        if (session.paid()) {
+            return customer.remainingMinutes();
+        }
         if (customer.type() != CustomerType.SUBSCRIBER || session.endedAt() == null || session.paid()) {
             return customer.remainingMinutes();
         }
@@ -410,7 +424,7 @@ public class SessionApplicationService implements
                 .filter(sale -> session.id().value().equals(sale.sessionId()))
                 .filter(sale -> !sale.soldAt().isBefore(session.endedAt()))
                 .mapToInt(this::subscriptionIncludedMinutes)
-                .sum();
+                .sum() + Math.max(0, extraCompensatedMinutes);
         int retroConsumedMinutes = Math.min(compensatedMinutes, Math.max(0, (session.consumedSeconds() + 59) / 60));
         return Math.max(0, customer.remainingMinutes() - retroConsumedMinutes);
     }
@@ -449,13 +463,17 @@ public class SessionApplicationService implements
                 connectionAmount = connectionPricingRepository.getCurrentRule().priceForMinutes(consumedMinutes);
             }
         } else {
-            int overtimeMinutes = Math.max(0, consumedMinutes - customer.remainingMinutes());
-            Money recomputedAmount = overtimeMinutes > 0
-                    ? connectionPricingRepository.getCurrentRule().priceForMinutes(overtimeMinutes)
-                    : Money.of("0");
-            connectionAmount = session.endedAt() == null
-                    ? recomputedAmount
-                    : new Money(session.calculatedPrice().amount().min(recomputedAmount.amount()));
+            if (session.paid()) {
+                connectionAmount = session.calculatedPrice();
+            } else {
+                int overtimeMinutes = Math.max(0, consumedMinutes - customer.remainingMinutes());
+                Money recomputedAmount = overtimeMinutes > 0
+                        ? connectionPricingRepository.getCurrentRule().priceForMinutes(overtimeMinutes)
+                        : Money.of("0");
+                connectionAmount = session.endedAt() == null
+                        ? recomputedAmount
+                        : new Money(session.calculatedPrice().amount().min(recomputedAmount.amount()));
+            }
         }
 
         var salesOfSession = saleRepository.findByCustomerId(customer.id()).stream()
@@ -496,6 +514,12 @@ public class SessionApplicationService implements
             BigDecimal payablePurchasesAmount,
             Money totalAmountDue,
             Money totalPaidAmount
+    ) {
+    }
+
+    private record PaymentSubscriptionApplicationResult(
+            Customer customer,
+            int addedIncludedMinutes
     ) {
     }
 }
